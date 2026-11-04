@@ -721,3 +721,10 @@ abbr.term { text-decoration: underline dotted; text-underline-offset: 3px; curso
 .side-items .agent-inputs select, .side-items .agent-inputs input:not([type="checkbox"]) { max-width: none; width: 100%; }
 .side-items .agent-cache { display: block; }
 @media (max-width: 760px) { .agent-list.agent-list-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* 진행 중인 단계 아래 실시간 내부 진행 (한 줄씩 쌓임, 새 줄은 잠깐 강조) */
+.agt-sub.agt-live { padding-left: 132px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agt-live-time { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.agt-live-new { animation: agt-new 1.2s ease-out; }
+@keyframes agt-new { from { background: color-mix(in srgb, var(--series-1) 18%, transparent); } to { background: transparent; } }
+.agt-row.agt-running { background: color-mix(in srgb, var(--series-1) 6%, transparent); }
+@media (max-width: 760px) { .agt-sub.agt-live { padding-left: 24px; } }

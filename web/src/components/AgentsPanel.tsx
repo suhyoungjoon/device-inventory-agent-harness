@@ -51,6 +51,7 @@ export default function AgentsPanel({
     llm: "fake" as "fake" | "claude", pace: 0.2, perspectives: false,
     end_check: "fixed" as "fixed" | "supervisor", use_saved_constraints: true,
     mode: "fixed" as AgentsMode,      // M18: 분석·개선 구간을 Supervisor가 지휘 (켜고 끄기, 기본 꺼짐)
+    auto: false,                      // 자동 진행: 사람 단계(사람 검토·제약 확인)에서만 멈추고 나머지는 이어서
   });
   // 실제 AI 이름: 서버 설정의 제공사·모델 (값 "claude"는 API 계약상 이름이고 제공사는 서버 설정이 정한다)
   const realAi = `${PROVIDER_LABEL[harness?.llm.provider ?? "anthropic"] ?? harness?.llm.provider} ${harness?.llm.model ?? ""}`.trim();
@@ -140,6 +141,15 @@ export default function AgentsPanel({
     setSaved(null);
     setReplay({ rec, n: 0 });
   });
+  // 자동 진행: 다음 단계를 기다리는 상태면 "다음 실행"을 대신 누른다 (사람 단계·오류·끝에서는 멈춘다)
+  const autoStepped = useRef(-1);
+  useEffect(() => {
+    if (!form.auto || replay || error || !liveRun || liveRun.status !== "paused" || liveRun.waiting !== "next") return;
+    const n = liveRun.steps.length;
+    if (autoStepped.current === n) return;
+    const t = setTimeout(() => { autoStepped.current = n; step("next"); }, 700);
+    return () => clearTimeout(t);
+  }, [form.auto, replay, error, liveRun?.status, liveRun?.waiting, liveRun?.steps.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const step = (action: StepAction, constraints?: Constraint[]) => guard(async () => {
     if (!flowId) return;
     setRun(await api.agentsStep(flowId, action, note, constraints));
@@ -245,6 +255,10 @@ export default function AgentsPanel({
             <option value="supervisor">Supervisor 에이전트</option>
           </select>
         </label>
+        <label title="켜면 다음 실행을 누르지 않아도 단계를 이어서 진행하고, 사람 검토·제약 확인에서만 멈춥니다. 사람 단계를 마치면 다시 이어 갑니다">
+          <input type="checkbox" checked={!!form.auto} onChange={(e) => setForm({ ...form, auto: e.target.checked })} />{" "}
+          자동 진행 (사람 단계에서만 멈춤)
+        </label>
         <label title="내부 단계 사이 간격. 가짜 AI는 너무 빨라 눈으로 따라가기 어렵다">
           속도{" "}
           <select value={form.pace} onChange={(e) => setForm({ ...form, pace: Number(e.target.value) })}>
@@ -321,6 +335,7 @@ export default function AgentsPanel({
 
       {graph && (
         <AgentsTimeline steps={run?.steps ?? []} running={running} label={topLabel} picked={picked}
+          events={events} innerLabel={(agent, node) => graph.agents[agent === "simulate" ? "dispatch_agent" : agent]?.nodes.find((n) => n.id === node)?.label ?? node}
           runningKind={graph.top.nodes.find((n) => n.id === running)?.kind as "ai" | "rule" | "human" | undefined}
           onPick={(id) => setPicked(picked === id ? null : id)} live={run?.status === "running"} />
       )}
