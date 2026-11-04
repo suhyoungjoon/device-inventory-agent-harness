@@ -109,6 +109,9 @@ function workingNode(t: AgentTabTimeline): string | null {
 
 const fmtNum = (v: number | null | undefined) => (v == null ? "–" : v.toLocaleString());
 
+// 배정 에이전트가 처리할 지시서 수 상한 (처리 순서 앞 N건, AI 비용·시간 때문)
+const MAX_ITEMS = 100;
+
 export default function AgentRunsPanel({
   domain,
   adapter,
@@ -253,8 +256,8 @@ export default function AgentRunsPanel({
             {agent === "dispatch" && (
               <>
                 <p className="small">데이터 번호 {seed} · 심어둔 문제 {faults.join("·") || "없음"} <span className="muted">(비교 탭 설정)</span></p>
-                <label>지시서 건수 <input type="number" min={1} max={10} value={items}
-                  onChange={(e) => setItems(Math.max(1, Math.min(10, Number(e.target.value) || 1)))} /></label>
+                <label title="처리 순서 앞에서부터 (1~100건). 늘리면 시간·비용이 건수만큼 늘어난다 (10건 약 1분 · $0.015)">지시서 건수 (1~100) <input type="number" min={1} max={MAX_ITEMS} value={items}
+                  onChange={(e) => setItems(Math.max(1, Math.min(MAX_ITEMS, Number(e.target.value) || 1)))} /></label>
                 <label title="L5면 단계마다 기록이 남아 끝난 뒤에도 같은 타임라인을 다시 볼 수 있다">하네스 레벨{" "}
                   <select value={level} onChange={(e) => setLevel(e.target.value)}>
                     {["L0", "L1", "L2", "L3", "L4", "L5"].map((l) => <option key={l}>{l}</option>)}

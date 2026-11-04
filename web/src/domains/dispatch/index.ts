@@ -141,8 +141,11 @@ export const dispatchAdapter: DomainAdapter = {
       items,
     }));
     const first = perDay[0];
+    // AI 시범 범위: 1일차 처리 순서 앞 10·50·100건 (AI 비용·시간 때문에 일부만, 최대 100건)
     const sample: Scope[] = first
-      ? [{ id: `${first.id}-10`, label: `${Number(first.id.slice(1))}일차 앞 10건 (시범)`, items: (first.items ?? []).slice(0, 10) }]
+      ? [10, 50, 100].filter((n) => n < (first.items ?? []).length).map((n) => ({
+          id: `${first.id}-${n}`, label: `${Number(first.id.slice(1))}일차 앞 ${n}건${n === 10 ? " (시범)" : ""}`,
+          items: (first.items ?? []).slice(0, n) }))
       : [];
     return [...sample, ...perDay, { id: "all", label: `전체 ${itemIds.length}건`, items: null }];
   },
