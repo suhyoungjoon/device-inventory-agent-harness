@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { WorkflowStep } from "../types";
+import { useEffect, useRef, useState } from "react";
+import type { AgentEvent, WorkflowStep } from "../types";
 
 // LangGraph agents 상위 타임라인 (M20): 워크플로우 노드 방문 하나 = 한 줄, 회차로 묶는다.
 // 에이전트 안의 턴 단위 진행은 아래 "에이전트 내부"·진행 기록에 있다 (여기는 한 단계 위).
@@ -24,7 +24,9 @@ function duration(s?: number | null) {
   return `${Math.floor(s / 60)}분 ${Math.round(s % 60)}초`;
 }
 
-export default function AgentsTimeline({ steps, running, runningKind, label, picked, onPick, live }: {
+const LIVE_LINES = 12;   // 진행 중인 단계 아래에 보일 내부 진행 줄 수 (그보다 많으면 앞쪽은 "… N줄 더")
+
+export default function AgentsTimeline({ steps, running, runningKind, label, picked, onPick, live, events = [], innerLabel }: {
   steps: WorkflowStep[];
   running: string | null;              // 지금 실행 중인 노드 (없으면 null)
   runningKind?: "ai" | "rule" | "human";
@@ -32,11 +34,22 @@ export default function AgentsTimeline({ steps, running, runningKind, label, pic
   picked: string | null;
   onPick: (node: string) => void;      // 줄을 누르면 그래프에서 그 노드를 고른 것과 같게
   live: boolean;                       // 실행 중이면 마지막 줄로 따라간다
+  events?: AgentEvent[];               // 에이전트 내부 진행 (진행 중인 단계 아래에 실시간으로 쌓는다)
+  innerLabel?: (agent: string, node: string) => string;
 }) {
   const box = useRef<HTMLOListElement>(null);
+  // 진행 중인 단계: 마지막으로 끝난 단계 뒤에 쌓인 내부 진행, 경과 시간(1초마다)
+  const since = steps.length ? steps[steps.length - 1].at : 0;
+  const inner = running ? events.filter((e) => e.at > since) : [];
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => setNow(Date.now() / 1000), 1000);
+    return () => clearInterval(t);
+  }, [running]);
   useEffect(() => {
     if (live && box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [steps.length, running, live]);
+  }, [steps.length, running, live, inner.length]);
 
   const rows: JSX.Element[] = [];
   let round = 0;
@@ -72,15 +85,27 @@ export default function AgentsTimeline({ steps, running, runningKind, label, pic
   });
   if (running) {
     const kind = KIND[runningKind ?? "rule"];
+    const last = inner[inner.length - 1];
     rows.push(
       <li key="running" className="agt-row agt-running" onClick={() => onPick(running)}>
-        <span className="agt-time" />
+        <span className="agt-time">{clock(since || undefined)}</span>
         <span className="agt-kind"><i className={`gc-dot ${kind.cls}`} /> {kind.label}</span>
         <span className="agt-name">{label(running)}</span>
-        <span className="agt-text muted">진행 중…</span>
-        <span className="agt-meta" />
+        <span className="agt-text muted">진행 중…{inner.length ? ` (내부 진행 ${inner.length}줄)` : ""}</span>
+        <span className="agt-meta">{since ? `경과 ${duration(Math.max(0, now - since))}` : ""}</span>
       </li>,
     );
+    if (inner.length > LIVE_LINES) {
+      rows.push(<li key="live-more" className="agt-sub agt-live muted">… 앞의 {inner.length - LIVE_LINES}줄 (아래 진행 기록에 전부)</li>);
+    }
+    for (const e of inner.slice(-LIVE_LINES)) {
+      rows.push(
+        <li key={`live-${e.i}`} className={`agt-sub agt-live${e === last ? " agt-live-new" : ""}${e.text.startsWith("✕") ? " critical-text" : ""}`}
+          onClick={() => onPick(running)}>
+          <span className="agt-live-time">{clock(e.at)}</span> ↳ <span className="muted">{innerLabel?.(e.agent, e.node) ?? e.node}</span> {e.text}
+        </li>,
+      );
+    }
   }
 
   return (
