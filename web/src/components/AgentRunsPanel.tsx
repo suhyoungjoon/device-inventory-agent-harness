@@ -163,7 +163,11 @@ export default function AgentRunsPanel({
     api.proposalOpinionHints(proposalId).then((r) => setHints(r.hints)).catch(() => setHints([]));
   }, [agent, proposalId]);
   const toggleCache = (enabled: boolean) => api.setLlmCache(enabled).then(setCache).catch((e) => setError(String(e.message ?? e)));
-  useEffect(() => { api.agentTabHistory(agent).then(setHistory).catch(() => setHistory([])); }, [agent, current?.id]);
+  useEffect(() => {
+    let stale = false;   // 에이전트를 바꾼 뒤 늦게 온 이전 에이전트의 목록은 버린다
+    api.agentTabHistory(agent).then((h) => { if (!stale) setHistory(h); }).catch(() => { if (!stale) setHistory([]); });
+    return () => { stale = true; };
+  }, [agent, current?.id]);
   const graphLevel = agent === "dispatch" ? level : "L5";
   const graphMode = agent === "supervisor" ? "supervisor" : "fixed";   // Supervisor 내부 그림은 supervisor 모드 그래프에만 있다
   useEffect(() => { api.agentsGraph(graphLevel, undefined, false, undefined, graphMode).then(setGraph).catch(() => setGraph(null)); },
@@ -183,7 +187,7 @@ export default function AgentRunsPanel({
   useEffect(() => {
     if (!shown || shown.live || shown.status === "running") return;
     refreshSources();
-    api.agentTabHistory(shown.agent).then(setHistory).catch(() => undefined);   // 실행 중에 읽은 상태가 남지 않게
+    if (shown.agent === agent) api.agentTabHistory(shown.agent).then(setHistory).catch(() => undefined);   // 실행 중에 읽은 상태가 남지 않게
   }, [shown?.status, shown?.live]);
 
   const me = info?.agents.find((a) => a.agent === agent);

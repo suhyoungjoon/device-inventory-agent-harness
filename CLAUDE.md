@@ -74,7 +74,7 @@ python -m scripts.rehearsal_bundle      # API 키 없이 쓰는 리허설 번들
 node scripts/record_demo.mjs --stills   # 시연 장면 녹화 (시연 모드 서버에 대해, runs/recordings)
 python -m scripts.demo_take check|reset  # 시연 동영상 테이크 점검·초기화 (규칙 파일 되돌리기 + 녹화용 DB runs/recordings/rec 새로 복사, 녹화 서버 명령 출력)
 node scripts/record_demo.mjs --url http://127.0.0.1:8010 --allow-live --scenes v1,v2,v3,v4,v5,v6 --take t1   # 시연 동영상 장면 (실제 AI, 비용)
-python -m scripts.make_demo_video --take t1   # 후처리: AI 대기 구간 8배속 + 제목 카드 → runs/recordings/demo_final.mp4 (ffmpeg)
+python -m scripts.make_demo_video --take t1 --out 사번_성명_시연영상.mp4   # 후처리: AI 대기 구간만 배속(짧은 대기 --speed, 1분 넘으면 --long-speed 범위) + 제목 카드·태그 범례 → runs/recordings/, 제출 기준(5분·500MB·1080p) 점검 (ffmpeg)
 python -m scripts.m15_eval all --max-usd 3   # M15 로컬 확인 실험: 임베딩·RAG 있이/없이·고정 규칙 vs Supervisor (실제 API, runs/m15_eval)
 python -m scripts.m18_eval all --repeats 3 --max-usd 15   # M18 평가: 고정 흐름 vs 분석·개선 Supervisor, S1~S3 (실제 API, runs/m18_eval, --fake면 비용 0)
 ```
