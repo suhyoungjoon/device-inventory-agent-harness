@@ -14,7 +14,7 @@ class StartRequest(BaseModel):
     domain: str
     seed: int = 42
     faults: list[str] = Field(default_factory=list)
-    items: int = Field(default=10, ge=1)          # 처리 순서 앞 N건 (AI 비용 때문에 일부만)
+    items: int = Field(default=10, ge=1, le=100)  # 처리 순서 앞 N건 (AI 비용 때문에 일부만, 화면도 1~100)
     level: str = "L3"
     metrics: list[dict] = Field(default_factory=list)   # 도메인 어댑터의 지표 정의 (요약 문장·좋아짐 판정)
 

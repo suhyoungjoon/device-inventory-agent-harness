@@ -144,3 +144,11 @@ def test_ai_step_reports_item_progress_while_running(tmp_path):
         assert s["progress"] is None and s["steps"][-1]["node"] == "ai_agent"
     finally:
         set_domain_files_root(None)
+
+
+def test_item_count_is_limited_to_100(client):
+    """배정 에이전트가 처리할 건수는 1~100 (AI 비용·시간 때문). Agent workflow·LangGraph agents 모두"""
+    body = {"domain": "dispatch", "seed": 42, "faults": [], "level": "L3", "metrics": METRICS}
+    assert client.post("/workflow/runs", json={**body, "items": 101}).status_code == 422
+    assert client.post("/agents/runs", json={**body, "items": 101}).status_code == 422
+    assert client.post("/workflow/runs", json={**body, "items": 100}).status_code == 200

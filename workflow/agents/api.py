@@ -30,7 +30,7 @@ class AgentsStart(BaseModel):
     domain: str
     seed: int = 42
     faults: list[str] = Field(default_factory=list)
-    items: int = Field(default=10, ge=1, le=200)
+    items: int = Field(default=10, ge=1, le=100)    # 배정 에이전트가 처리할 앞 N건 (AI 비용·시간 때문, 화면도 1~100)
     level: str = "L3"
     metrics: list[dict] = Field(default_factory=list)
     llm: Literal["fake", "claude"] = "fake"

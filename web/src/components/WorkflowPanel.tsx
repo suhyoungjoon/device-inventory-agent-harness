@@ -122,7 +122,8 @@ export default function WorkflowPanel({
           ))}
         </fieldset>
         <label title="처리 순서 앞에서부터 이 건수만 AI로 처리한다 (비용 때문)">
-          처리할 건수 <input type="number" min={1} value={form.items} onChange={(e) => setForm({ ...form, items: Number(e.target.value) })} />
+          처리할 건수 (1~100) <input type="number" min={1} max={100} value={form.items}
+            onChange={(e) => setForm({ ...form, items: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} />
         </label>
       </SideGroup>
       <SideGroup title="선택">
