@@ -47,7 +47,7 @@ P4:
   generation:
     description: 플래그십 모델군의 주간 수요 변동(변동계수)을 키운다 (이력과 계획 기간 모두)
     family: flagship
-    cv: 0.45
+    cv: 0.6
   expected: 플래그십만 결품. 그 모델군에만 안전재고를 늘리는 구간 조건으로 개선
   answer:
     dims: {family: flagship}

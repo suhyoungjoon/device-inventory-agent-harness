@@ -43,10 +43,10 @@ order:
   kinds: {moq: fixed}
 
 budget:
-  weekly_cap: 90000
+  weekly_cap: 110000
   docs:
     weekly_cap: 주간 구매 예산 승인 한도(만원). 한 주의 발주 금액 합이 이 값을 넘으면 안 된다
-  bounds: {weekly_cap: [90000, 90000]}
+  bounds: {weekly_cap: [110000, 110000]}
   kinds: {weekly_cap: governance}
 
 approval:                       # L4 가드레일: 아래 중 하나라도 해당하면 pending_approval

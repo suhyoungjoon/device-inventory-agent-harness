@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from .models import Branch, DeviceModel, Instance, Maker, pair_key
+from .models import Branch, DeviceModel, Instance, Maker, item_id, pair_key
 
 PACK_DIR = Path(__file__).resolve().parent
 
@@ -50,32 +50,57 @@ def generate(seed: int, faults: list[str]) -> tuple[Instance, dict]:
     unknown = [f for f in faults if f not in known]
     if unknown:
         raise ValueError(f"알 수 없는 결함: {unknown}")
-    if faults:
-        raise NotImplementedError("결함 주입은 M21-b에서 구현한다")
 
     weeks, hist = cfg["weeks"], cfg["history_weeks"]
     d = cfg["demand"]
     branches = {b: Branch(id=b, name=s["name"], warehouse_capacity=s["warehouse_capacity"])
                 for b, s in cfg["branches"].items()}
+    gen = {f: known[f]["generation"] for f in faults}
     makers = {m: Maker(id=m, name=s["name"], supply_cap=s["supply_cap"]) for m, s in cfg["makers"].items()}
+    if "P2" in gen:                                   # 자원 편중: 한 제조사 공급 한도를 빠듯하게
+        makers[gen["P2"]["maker"]].supply_cap = gen["P2"]["supply_cap"]
     models = {m: DeviceModel(id=m, name=s["name"], family=s["family"], maker=s["maker"], phase=s["phase"],
                              unit_cost=s["unit_cost"], launch_offset=s.get("launch_offset"),
                              eol_week=s.get("eol_week"))
               for m, s in cfg["models"].items()}
 
     history, actual, initial = {}, {}, {}
+    affected: dict[str, list[str]] = {f: [] for f in faults}
     for b, bs in cfg["branches"].items():
         for m, ms in cfg["models"].items():
             model, key = models[m], pair_key(b, m)
             base = ms["base"] * bs["demand_scale"]
             cv = d["cv"][model.family]
+            if "P4" in gen and model.family == gen["P4"]["family"]:   # 파라미터 경계: 모델군 변동을 키움
+                cv = gen["P4"]["cv"]
             rng = _rng(seed, "demand", key)
             series = [_draw(rng, level(model, base, t, d), cv) for t in range(1 - hist, weeks + 1)]
             history[key], actual[key] = series[:hist], series[hist:]
+            if "P1" in gen and b == gen["P1"]["branch"] and model.phase == gen["P1"]["phase"]:   # 수요 집중
+                for w in gen["P1"]["weeks"]:
+                    actual[key][w - 1] = round(actual[key][w - 1] * gen["P1"]["multiplier"])
+                affected["P1"] += [item_id(w, b, m) for w in gen["P1"]["weeks"]]
+            if "P3" in gen:                                # 가용성 불일치: 지점 과거 수요를 부풀리거나 줄임
+                factor = {gen["P3"]["inflated_branch"]: gen["P3"]["inflate"],
+                          gen["P3"]["deflated_branch"]: gen["P3"]["deflate"]}.get(b)
+                if factor is not None:
+                    history[key] = [round(v * factor) for v in history[key]]
             lo, hi = d["initial_stock_weeks"]
             initial[key] = round(level(model, base, 1, d) * _rng(seed, "stock", key).uniform(lo, hi))
 
     inst = Instance(weeks=weeks, history_weeks=hist, branches=branches, makers=makers, models=models,
                     history=history, initial_stock=initial)
     inst.set_actual(actual)
-    return inst, {"faults": {}}
+    truth = {"faults": {}}
+    for f in faults:
+        entry = {**known[f]}
+        if f == "P1":
+            entry["affected_items"] = affected["P1"]
+        if f == "P2":
+            entry["affected_maker"] = gen["P2"]["maker"]
+        if f == "P3":
+            entry["inflated_branch"], entry["deflated_branch"] = gen["P3"]["inflated_branch"], gen["P3"]["deflated_branch"]
+        if f == "P4":
+            entry["affected_models"] = sorted(m for m, x in models.items() if x.family == gen["P4"]["family"])
+        truth["faults"][f] = entry
+    return inst, truth

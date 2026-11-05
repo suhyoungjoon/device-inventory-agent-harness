@@ -10,8 +10,8 @@ branches:                       # demand_scale: 모델 기본 수요에 곱하�
   C: {name: 송파지점, demand_scale: 0.8, warehouse_capacity: 1000}
 
 makers:                         # supply_cap: 제조사 주간 공급 한도 (세 지점 합, 대)
-  MA: {name: 제조사 A, supply_cap: 450}
-  MB: {name: 제조사 B, supply_cap: 360}
+  MA: {name: 제조사 A, supply_cap: 500}
+  MB: {name: 제조사 B, supply_cap: 420}
   MC: {name: 제조사 C, supply_cap: 260}
 
 models:                         # base: 계획 1주 기준 주간 수요 (지점 규모 1.0)
@@ -30,4 +30,4 @@ demand:
   cv: {flagship: 0.15, mid: 0.15, kids_senior: 0.2}   # 주간 변동(변동계수)
   new_growth: 0.08              # 신규 모델 주간 수요 증가율 (출시 후 계속 오름)
   eol_decline: 0.10             # 단종 예정 모델 주간 수요 감소율
-  initial_stock_weeks: [1.5, 2.5]   # 계획 1주 시작 재고 = 기본 수요 × 이 범위의 무작위 주 수
+  initial_stock_weeks: [2.5, 3.5]   # 계획 1주 시작 재고 = 기본 수요 × 이 범위의 무작위 주 수
