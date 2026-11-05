@@ -97,3 +97,16 @@ def test_tools_reflect_decisions_so_far(pack):
     limits = tools["get_limits"]({}, ToolContext(item_id="W1-A-M02", decisions=placed))
     assert limits["budget_left"] == pack.params["budget"]["weekly_cap"] - qty * inst.models["M01"].unit_cost
     assert limits["supply_left"]["MA"] == inst.makers["MA"].supply_cap - qty
+
+
+def test_tool_input_errors_are_returned_not_raised(pack):
+    """입력 오류는 {"error"}로 돌려준다. 예외를 던지면 러너가 LLM 오류로 세어 실행이 멈춘다 (실제 AI 실행에서 발생)."""
+    inst, _ = pack.generate(0, [])
+    tools = {t["name"]: t["handler"] for t in pack.tools(inst)}
+    ctx = ToolContext(item_id="W1-A-M10", decisions=[])
+    for name in ("get_stock", "get_demand_history", "calc_forecast"):
+        out = tools[name]({"branch": "W1", "model": "M10"}, ctx)
+        assert "error" in out and "branch는" in out["error"]
+    # 항목 ID를 통째로 넣어도 알아듣는다
+    assert tools["get_stock"]({"branch": "W1-A-M10"}, ctx)["model"] == "M10"
+    assert tools["get_stock"]({"item_id": "W1-B-M02"}, ctx)["branch"] == "B"
