@@ -11,10 +11,10 @@ perspectives:
     question: |
       이번 분석에서는 '결품 패턴' 관점만 본다.
       어느 구간(지점·모델군·제조사·출시 단계·주차 구간)에서 재고가 없어 못 판 수요(결품)가 몰리는지 찾는다.
-      결품은 발주 실패가 아니라 재고 흐름 결과라 stockout_by로 본다. 구간은 가능한 한 좁혀서(여러 차원을 함께) slice에 적는다.
+      결품은 발주 실패가 아니라 재고 흐름 결과라 stockout_hotspots로 먼저 찾고 stockout_by로 확인한다. 구간은 가능한 한 좁혀서(여러 차원을 함께) slice에 적는다.
       예측이 늦게 따라간 탓인지(forecast_error), 수요가 들쭉날쭉한 탓인지(demand_volatility)도 근거로 함께 본다.
       결품이 적은 구간은 발견으로 올리지 않는다. 비교 기준으로만 설명에 쓴다.
-    tools: [overview, stockout_by, forecast_error, demand_volatility]
+    tools: [overview, stockout_hotspots, stockout_by, forecast_error, demand_volatility]
 
   - id: efficiency
     name: 재고 효율

@@ -75,3 +75,14 @@ def test_analysis_tools_reject_unknown_dims():
     with pytest.raises(ValueError):
         tools["stockout_by"]({"group_by": ["hour"]})
     assert tools["forecast_error"]({})["rows"][0]["model_name"]
+
+
+def test_stockout_hotspots_surface_p1_and_p4_first():
+    """결품 구간 도구가 한 번에 P1(강남·신규·초반)과 플래그십 구간을 보여 준다 (실제 분석이 실패 사유만 보고 놓쳤던 것)."""
+    pack = get_pack()
+    inst, _ = pack.generate(42, ["P1", "P2", "P3", "P4"])
+    tools = {t["name"]: t for t in pack.analysis_tools(inst, pack.solve(inst, pack.params))}
+    assert list(tools)[0] == "stockout_hotspots" and "결품" in tools["stockout_hotspots"]["description"]
+    rows = tools["stockout_hotspots"]["handler"]({"limit": 40})["rows"]
+    assert rows[0]["slice"] == {"branch": ["B"], "phase": ["new"], "week_band": ["early"]}
+    assert {"family": ["flagship"]} in [r["slice"] for r in rows]

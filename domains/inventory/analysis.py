@@ -2,10 +2,12 @@
 
 코어의 집계 도구(overview, aggregate …)는 "발주 실패"(한도·단종으로 하나도 못 산 항목)만 센다.
 결품·재고일수·공급 한도 사용률·예측 오차는 재고 흐름을 다시 계산해야 보이므로 여기서 제공한다.
+결품 구간을 먼저 찾게 stockout_hotspots를 맨 앞에 두고, 설명에 "실패와 결품은 다르다"를 적는다 (M21-e: 실제 분석이 실패 사유만 보고 결품 구간을 놓쳤다).
 수치는 도구 결과에 그대로 나온 값을 인용할 수 있게 소수 셋째 자리(비율)·첫째 자리(일수)로 반올림한다.
 """
 
 from collections import defaultdict
+from itertools import combinations
 
 from core.interfaces import DecisionRecord
 
@@ -65,6 +67,38 @@ def build_analysis_tools(inst: Instance, decisions: list[DecisionRecord], params
         return {"group_by": group_by, "filters": filters, "demand": total["demand"], "lost": total["lost"],
                 "stockout_rate": _rate(total["lost"], total["demand"]), "groups": len(rows), "rows": rows[:limit],
                 "note": "칸 = 주차×지점×모델. 결품률 = 못 판 수요 / 수요. 기본은 결품률 높은 순"}
+
+    def stockout_hotspots(args: dict) -> dict:
+        """차원 1~3개 조합의 모든 구간을 훑어, 전체보다 결품률이 뚜렷이 높은 구간을 못 판 수요가 많은 순으로."""
+        total_demand = sum(c.demand for c in cells)
+        total_lost = sum(c.lost for c in cells)
+        overall = total_lost / total_demand if total_demand else 0.0
+        min_share = float(args.get("min_demand_share") or 0.02)
+        dims = sorted(declared)
+        acc = defaultdict(lambda: [0, 0, 0])          # 수요, 결품, 주말 재고
+        for c in cells:
+            d = cell_dims[id(c)]
+            for k in (1, 2, 3):
+                for combo in combinations(dims, k):
+                    a = acc[tuple((dim, d[dim]) for dim in combo)]
+                    a[0] += c.demand
+                    a[1] += c.lost
+                    a[2] += c.end_stock
+        rows = []
+        for key, (dem, lost, stock) in acc.items():
+            if dem < min_share * total_demand or not lost:
+                continue
+            rate = lost / dem
+            if rate < max(1.5 * overall, overall + 0.03):
+                continue
+            rows.append({"slice": {k: [v] for k, v in key}, "demand": dem, "lost": lost, "stockout_rate": _rate(lost, dem),
+                         "excess_lost": round(lost - overall * dem), "avg_stock_days": _days(stock, dem)})
+        rows.sort(key=lambda r: (-r["excess_lost"], len(r["slice"])))
+        limit = int(args.get("limit") or 15)
+        return {"overall_stockout_rate": _rate(total_lost, total_demand), "demand": total_demand, "lost": total_lost,
+                "hotspots": len(rows), "rows": rows[:limit],
+                "note": "결품률이 전체의 1.5배 이상이면서 +3%p 이상인 구간. excess_lost = 전체 결품률이었다면 덜 잃었을 수요(대). "
+                        "넓은 구간과 그 안의 좁은 구간이 함께 나오면, 좁은 구간이 결품을 거의 다 설명하는지 비교해 좁은 쪽을 발견으로 올린다"}
 
     def branch_stock_stats(args: dict) -> dict:
         acc = defaultdict(lambda: {"demand": 0, "lost": 0, "end_stock": 0, "ordered": 0, "purchase": 0})
@@ -145,8 +179,15 @@ def build_analysis_tools(inst: Instance, decisions: list[DecisionRecord], params
 
     obj = {"type": "object"}
     return [
+        {"name": "stockout_hotspots", "handler": stockout_hotspots,
+         "description": "이 업무의 핵심 문제는 결품(재고가 없어 못 판 수요)이다. overview·aggregate가 세는 '실패'는 한도·단종 때문에 "
+                        "하나도 못 산 발주뿐이라 결품은 거기에 나오지 않는다. 이 도구로 결품이 몰린 구간(차원 1~3개 조합)을 먼저 찾는다.",
+         "input_schema": {**obj, "properties": {
+             "min_demand_share": {"type": "number", "description": "구간 수요가 전체의 이 비율 이상인 것만 (기본 0.02)"},
+             "limit": {"type": "integer", "minimum": 1, "maximum": 40}}}},
         {"name": "stockout_by", "handler": stockout_by,
-         "description": "결품 집계: group_by 차원 조합별 수요·결품·결품률·결품 주 수·평균 재고일수. filters로 범위를 좁힌다.",
+         "description": "결품 집계: group_by 차원 조합별 수요·결품·결품률·결품 주 수·평균 재고일수. filters로 범위를 좁힌다. "
+                        "stockout_hotspots로 찾은 구간을 확인하거나 비교할 때 쓴다.",
          "input_schema": {**obj, "properties": {
              "group_by": _DIMS, "filters": _FILTERS,
              "sort_by": {"type": "string", "enum": ["stockout_rate", "lost", "demand", "avg_stock_days"]},
