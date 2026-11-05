@@ -1,4 +1,6 @@
-# optimization-agent-harness
+# device-inventory-agent-harness
+
+> [optimization-agent-harness](https://github.com/suhyoungjoon/optimization-agent-harness)에서 갈라져 **단말 재고부족·구매예측 도메인**(`domains/inventory/`)을 추가한 레포다. 같은 하네스에 출동(`dispatch`)과 단말 재고(`inventory`) 두 도메인이 함께 돈다(M21). 하네스 쪽 변경은 `docs/m21-core-changes.md`에 기록한다.
 
 같은 최적화 문제를 **규칙 기반 agent**(기준선)와 **LLM agent**로 나란히 풀고, LLM agent를 하네스 레벨(L0~L5)별로 쌓아 비교한다.
 그 결과를 **분석 agent**가 읽어 실패 패턴을 찾고, **개선 루프**가 파라미터·명세 개선안을 제안하면 시뮬레이션으로 확인한 뒤 사람이 승인한다.

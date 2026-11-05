@@ -1,8 +1,8 @@
-# optimization-agent-harness
+# device-inventory-agent-harness (optimization-agent-harness에서 갈라짐)
 
 규칙 기반 최적화 agent를 기준선으로 두고, 같은 문제를 푸는 LLM agent를 하네스 엔지니어링 레벨(L0~L5)별로 구현·비교한 뒤,
 결과 분석 agent와 개선 루프(제안 → 시뮬레이션 → 사람 승인)까지 수행하는 범용 프레임워크.
-첫 도메인은 출동 스케줄링(dispatch)이며, 가상 데이터만 사용한다. 전체 기획은 `docs/plan.md` 참고.
+첫 도메인은 출동 스케줄링(dispatch), 두 번째 도메인은 단말 재고부족·구매예측(inventory, M21: 지점×모델×주차 발주 결정, 수요 예측은 규칙 계산이고 AI는 예측·발주 규칙 파라미터를 분석·개선)이며, 가상 데이터만 사용한다. 코어 변경은 `docs/m21-core-changes.md`에 이유·줄 수를 남긴다. 전체 기획은 `docs/plan.md` 참고.
 
 ## 핵심 원칙 (반드시 지킬 것)
 
@@ -24,6 +24,7 @@
 ```
 core/            공통 코어 (interfaces, harness, llm, evaluation, analysis, improvement, storage)
 domains/dispatch 출동 스케줄링 도메인 팩 (generator, rule_engine, tools, metrics, *.yaml, domain-spec.md)
+domains/inventory 단말 재고·구매 도메인 팩 (M21)
 configs/         harness_levels.yaml, llm.yaml, sweep.yaml, proposals.yaml, workflow.yaml
 api/             FastAPI
 web/             React + Vite 프런트엔드
