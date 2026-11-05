@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCENES = ["v1", "v2", "v3", "v4", "v5", "v6"]
+SCENES = ["v1", "v2", "v3", "v4", "v5", "v6"]   # 기본 순서. --scenes로 바꾼다 (M21: v5 빼고 v7 단말 재고 확장 추가)
 FONTS = ["/System/Library/Fonts/AppleSDGothicNeo.ttc", "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
          "/usr/share/fonts/truetype/nanum/NanumGothic.ttf", "C:/Windows/Fonts/malgun.ttf"]
 TITLE = "출동 배정 최적화 · 하네스 기반 AI 에이전트 시연"
@@ -137,8 +137,8 @@ def encode_scene(src: Path, marks: list[dict], dst: Path, base: float, long_rang
             "stretch": round(stretch, 3), "fast_spans": spans}
 
 
-def title_card(dst: Path, font: str, live: bool, when: str, seconds: float = 5.0) -> None:
-    lines = [(TITLE, 64, -130), ("회사 Azure OpenAI 실제 호출" if live else "가짜 AI(리허설) 녹화 — 실제 호출 아님 · 제출용 아님", 40, -30),
+def title_card(dst: Path, font: str, live: bool, when: str, seconds: float = 5.0, title: str = TITLE) -> None:
+    lines = [(title, 64 if len(title) <= 30 else 54, -130), ("회사 Azure OpenAI 실제 호출" if live else "가짜 AI(리허설) 녹화 — 실제 호출 아님 · 제출용 아님", 40, -30),
              (f"녹화 {when} · AI 대기 구간은 배속 표시와 함께 빨리 감기, 로그는 1배속", 30, 30)]
     draw = [f"drawtext=fontfile='{font}':text='{esc(t)}':fontsize={size}:fontcolor=white:x=(w-tw)/2:y=(h-th)/2+{dy}"
             for t, size, dy in lines]
@@ -178,7 +178,15 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--long-target", type=float, default=LONG_TARGET, help="긴 대기 하나가 영상에서 차지할 목표 초")
     ap.add_argument("--out", default="사번_성명_시연영상.mp4")
     ap.add_argument("--font", default=None)
+    # M21: 다른 레포에서 녹화한 장면을 섞고, 장면별 배속을 따로 준다 (재녹화 없이 편집만)
+    ap.add_argument("--scenes", default=",".join(SCENES), help="이을 장면 순서 (예: v1,v2,v3,v4,v6,v7)")
+    ap.add_argument("--scene-dir", action="append", default=[], help="장면별 폴더 (예: v7=runs/recordings). 없으면 --dir")
+    ap.add_argument("--scene-long-speed", action="append", default=[], help="장면별 긴 대기 배율 범위 (예: v4=20-20)")
+    ap.add_argument("--work", default=None, help="중간 파일·결과를 쓸 폴더 (없으면 --dir). 다른 레포 녹화 폴더를 건드리지 않을 때")
+    ap.add_argument("--title", default=TITLE)
     args = ap.parse_args(argv)
+    scene_dirs = dict(kv.split("=", 1) for kv in args.scene_dir)
+    scene_long = {k: tuple(float(x) for x in v.split("-")) for k, v in (kv.split("=", 1) for kv in args.scene_long_speed)}
     need_ffmpeg()
     font = font_file(args.font)
     lo, hi = (float(x) for x in args.long_speed.split("-"))
@@ -188,34 +196,37 @@ def main(argv: list[str] | None = None) -> None:
     live = bool(take.get("live"))
     when = (take.get("started") or time.strftime("%Y-%m-%d"))[:10]
 
-    parts = folder / ".parts"
-    parts.mkdir(exist_ok=True)
+    work = Path(args.work) if args.work else folder
+    parts = work / ".parts"
+    parts.mkdir(parents=True, exist_ok=True)
     clips = [parts / "00-title.mp4"]
-    title_card(clips[0], font, live, when)
+    title_card(clips[0], font, live, when, title=args.title)
     report = {}
-    for sid in SCENES:
-        src = folder / f"scene-{sid}.webm"
+    for sid in [x for x in args.scenes.split(",") if x]:
+        src_dir = Path(scene_dirs.get(sid, folder))
+        src = src_dir / f"scene-{sid}.webm"
         if not src.is_file():
             print(f"장면 {sid}: 없음 (건너뜀)")
             continue
-        mpath = folder / f"scene-{sid}.marks.json"
+        mpath = src_dir / f"scene-{sid}.marks.json"
         mdata = json.loads(mpath.read_text(encoding="utf-8")) if mpath.is_file() else {}
         dst = parts / f"{sid}.mp4"
-        report[sid] = encode_scene(src, mdata.get("marks", []), dst, args.speed, (lo, hi), font, live, mdata.get("seconds"),
-                                   args.long_target)
+        report[sid] = encode_scene(src, mdata.get("marks", []), dst, args.speed, scene_long.get(sid, (lo, hi)), font, live,
+                                   mdata.get("seconds"), args.long_target)
         clips.append(dst)
         r = report[sid]
         speeds = ", ".join(f"{sp['end'] - sp['start']:.0f}초×1/{sp['speed']:g}" for sp in r["fast_spans"]) or "배속 없음"
         print(f"장면 {sid}: {r['source_seconds']}초 → {r['output_seconds']}초 ({speeds})")
     listing = parts / "list.txt"
     listing.write_text("".join(f"file '{c.resolve()}'\n" for c in clips), encoding="utf-8")
-    out = folder / args.out
+    out = work / args.out
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy",
                     "-movflags", "+faststart", str(out)], check=True)
     info = probe(out)
     problems = check_submission(out, report)
-    (folder / f"{out.stem}.json").write_text(json.dumps(
-        {"take": take.get("take"), "live": live, "speed": args.speed, "long_speed": [lo, hi], "seconds": round(info["seconds"], 1),
+    (work / f"{out.stem}.json").write_text(json.dumps(
+        {"take": take.get("take"), "live": live, "speed": args.speed, "long_speed": [lo, hi],
+         "scene_dirs": scene_dirs, "scene_long_speed": {k: list(v) for k, v in scene_long.items()}, "seconds": round(info["seconds"], 1),
          "bytes": out.stat().st_size, "format": info, "scenes": report, "problems": problems}, ensure_ascii=False, indent=1),
         encoding="utf-8")
     print(f"완성: {out} ({info['seconds'] / 60:.2f}분 · {out.stat().st_size / 1024 / 1024:.1f}MB · "

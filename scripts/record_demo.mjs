@@ -558,6 +558,43 @@ const scenes = {
     const rate = /(\d+\.\d%\s*→\s*\d+\.\d%)/.exec(line ?? "")?.[1] ?? "-";
     await say(page, `이번 실행 1회차 ${rate} · 반영은 사람 승인 뒤에만 · 다음 단계: 실제 실적 데이터 연동`);
   },
+
+  // v7 도메인 팩 확장 (M21, 이 레포): 같은 하네스에 두 번째 업무(단말 재고·구매)를 붙여 한 번 돌린 결과.
+  // 규칙 실행(비용 없음) → 저장한 실제 AI 실행 기록 다시 열기(AI 호출 없음). 기록은 먼저 실제 AI로 한 번 돌려 저장해 둔다
+  async v7(page) {
+    await openApp(page);
+    await page.locator("header select").first().selectOption("inventory");
+    await page.getByRole("tab", { name: "비교" }).click();
+    await say(page, "확장: 같은 하네스에 두 번째 업무 '단말 재고·구매'를 도메인 팩으로 추가 (지점 3 × 모델 10 × 8주 = 발주 240건)");
+    await generate(page, "W1");   // 1주차 전 지점: 표에 세 지점이 다 보인다 (지표는 그 지점×모델의 8주 전체)
+    await page.getByRole("button", { name: /규칙 방식 실행/ }).click();
+    const grid = page.locator(".inv-grid").first();
+    await grid.waitFor({ timeout: TIMEOUT });
+    const rate = (await page.locator(".tile").filter({ hasText: "결품률" }).locator(".tile-value").first().innerText()).trim();
+    fact("rule_stockout_rate", rate);
+    await spot(page, grid.locator("td.inv-cell").filter({ hasText: "18.5%" }), { key: "hot cell",
+      say: `결과 화면만 도메인 전용(지점×모델 결품률 표) · 규칙 엔진 결품률 ${rate} · 빨간 칸 = 숨겨 둔 문제` });
+
+    await page.getByRole("tab", { name: "LangGraph agents" }).click();
+    await page.getByRole("button", { name: "기록 열기" }).click();
+    const pick = page.getByRole("combobox", { name: "저장한 실행 기록" });
+    await pick.waitFor({ timeout: TIMEOUT });
+    const value = await pick.locator("option").nth(1).getAttribute("value");
+    if (!value) throw new Error("저장한 기록이 없음 (재고 도메인 실제 AI 실행을 먼저 저장)");
+    await pick.selectOption(value);
+    await page.getByRole("button", { name: "끝으로" }).click();
+    fact("record", value);
+    const found = await spot(page, page.locator(".agt-row").filter({ hasText: "심어둔 문제" }),
+      { key: "analysis", tag: "tool",
+        say: (t) => `실제 AI 실행 기록 (발주 → 분석 → 개선 → 사람 승인) · 분석: ${/심어둔 문제 \d+개 중 \d+개 찾음/.exec(t ?? "")?.[0] ?? cut(t, 30)}` });
+    fact("analysis", found);
+    await page.locator(".loop-panel").scrollIntoViewIfNeeded().catch(() => undefined);
+    const line = await text(page.locator(".loop-panel table tbody tr").first());
+    fact("loop", line);
+    const change = /(\d+\.\d%\s*→\s*\d+\.\d%)/.exec(line ?? "")?.[1] ?? "-";
+    await say(page, `승인한 규칙 설정값으로 240건 다시 발주: 결품률 ${change} · 규칙 위반 0건`);
+    await say(page, "도메인 지식은 domains/inventory 폴더와 화면 어댑터에만 · 코어는 선택 훅과 화면 문구만 추가 (출동 그대로)");
+  },
 };
 
 async function record(browser, id) {
@@ -602,10 +639,10 @@ function saveTake(results) {
 
 // 시연 장면은 상태를 바꾸지 않는 장면부터 녹화한다: v3이 승인(규칙 버전↑)·제약 저장을 하므로 v5(개선안 카드)를 먼저,
 // v6(v3의 기록 열기)은 v3 뒤에. 영상은 후처리가 v1~v6 순서로 잇는다
-const SAFE_ORDER = ["v1", "v2", "v5", "v4", "v3", "v6"];
+const SAFE_ORDER = ["v1", "v2", "v5", "v4", "v3", "v6", "v7"];
 const asked = opts.scenes.split(",").filter(Boolean);
 const ids = [...asked.filter((id) => !SAFE_ORDER.includes(id)), ...SAFE_ORDER.filter((id) => asked.includes(id))];
-for (const id of ids) if (!scenes[id]) throw new Error(`없는 장면: ${id} (1, 2, 3, v1~v6)`);
+for (const id of ids) if (!scenes[id]) throw new Error(`없는 장면: ${id} (1, 2, 3, v1~v7)`);
 mkdirSync(opts.out, { recursive: true });
 const browser = await chromium.launch({ headless: !opts.headed });
 const results = [];
