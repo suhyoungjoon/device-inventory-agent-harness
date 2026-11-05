@@ -728,3 +728,23 @@ abbr.term { text-decoration: underline dotted; text-underline-offset: 3px; curso
 @keyframes agt-new { from { background: color-mix(in srgb, var(--series-1) 18%, transparent); } to { background: transparent; } }
 .agt-row.agt-running { background: color-mix(in srgb, var(--series-1) 6%, transparent); }
 @media (max-width: 760px) { .agt-sub.agt-live { padding-left: 24px; } }
+
+/* M21 단말 재고 결과 화면 (domains/inventory/InventoryView) */
+.inventory-view { display: flex; flex-direction: column; gap: 8px; }
+.inv-grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+.inv-grid th, .inv-grid td { border: 1px solid var(--grid); padding: 4px 8px; text-align: left; }
+.inv-grid thead th { background: var(--hover-wash); }
+.inv-cell { cursor: pointer; text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.inv-grid th { white-space: nowrap; }
+.inv-plan-scroll { overflow-x: auto; }
+.inv-cell.picked { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.inv-cell.lit { outline: 2px solid var(--warning); outline-offset: -2px; }
+.inv-chart h3 { font-size: 14px; margin: 4px 0; }
+.inv-plan summary { cursor: pointer; padding: 4px 0; }
+.inv-plan-bar { display: flex; gap: 12px; align-items: center; margin: 6px 0; }
+.inv-plan-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.inv-plan-table th, .inv-plan-table td { border-bottom: 1px solid var(--grid); padding: 3px 6px; text-align: left; vertical-align: top; white-space: nowrap; }
+.inv-plan-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.inv-plan-table tr.constrained td { background: rgba(250, 178, 25, 0.12); }
+.inv-plan-table td.evidence { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.inv-plan-table .bad { color: var(--critical); }

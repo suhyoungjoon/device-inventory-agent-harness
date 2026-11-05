@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { TERMS } from "../terms";
+import { L, TERMS } from "../terms";
 import SidePanel, { SideGroup } from "./SidePanel";
 import Details from "./Details";
 import type { DecisionRecord, Run, TraceRecord } from "../types";
@@ -11,7 +11,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "전체" },
   { id: "retried", label: "다시 시도한 건" },
   { id: "held", label: "차단·승인 대기" },
-  { id: "failed", label: TERMS.unassigned.label },
+  { id: "failed", get label() { return L(TERMS.unassigned.label); } },
 ];
 
 const KIND_LABELS: Record<TraceRecord["kind"], [string, string]> = {   // [쉬운 말, 원래 용어]
@@ -191,7 +191,7 @@ function DecisionCard({
             {STATUS_MARK[record.status]}{" "}
             {d && record.status !== "failed"
               ? decisionText(d)
-              : TERMS.unassigned.label}
+              : L(TERMS.unassigned.label)}
             {record.reason_code && (
               <span title={`${reasonDetails[record.reason_code] ?? ""} (${record.reason_code})`}>
                 {" · "}{reasonLabels[record.reason_code] ?? record.reason_code}
@@ -206,8 +206,8 @@ function DecisionCard({
 }
 
 const STATUS_TEXT: Record<DecisionRecord["status"], string> = {
-  success: "배정",
-  failed: TERMS.unassigned.label,
+  get success() { return L("배정"); },
+  get failed() { return L(TERMS.unassigned.label); },
   blocked: "차단",
   pending_approval: "승인 대기",
 };

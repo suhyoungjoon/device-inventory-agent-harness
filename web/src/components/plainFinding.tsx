@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { DomainAdapter } from "../domains/types";
 import type { DecisionRecord, Finding } from "../types";
-import { TERMS } from "../terms";
+import { L, TERMS } from "../terms";
 
 // 문제 찾기 쉽게 읽기: AI가 쓴 문장 속 코드·소수 비율을 쉬운 말로, 업무 용어에는 설명을 단다.
 // 저장된 리포트는 바꾸지 않고 화면에서만 바꾼다 (지난 리포트에도 그대로 적용, AI 호출 없음).
@@ -90,6 +90,6 @@ export function findingSummary(rows: DecisionRecord[], all: DecisionRecord[], wh
   const counts = new Map<string, number>();
   bad.forEach((d) => d.reason_code && counts.set(d.reason_code, (counts.get(d.reason_code) ?? 0) + 1));
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  return `${where ? `${where}: ` : ""}${rows.length}건 중 ${TERMS.unassigned.label} ${bad.length}건 (${pct(bad.length, rows.length)}, 전체 ${pct(allBad, all.length)})`
+  return `${where ? `${where}: ` : ""}${rows.length}건 중 ${L(TERMS.unassigned.label)} ${bad.length}건 (${pct(bad.length, rows.length)}, 전체 ${pct(allBad, all.length)})`
     + (top ? ` · 주된 이유: ${reasonLabels[top[0]] ?? top[0]} ${top[1]}건` : "");
 }

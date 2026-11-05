@@ -7,6 +7,7 @@ import { usePoll } from "./usePoll";
 import { OpinionHelp, type OpinionChip } from "./opinionHelp";
 import { useSessionState, useStoredId } from "./useStoredId";
 import SidePanel, { SideGroup } from "./SidePanel";
+import { domainTerms } from "../terms";
 
 // Agent workflow (LangGraph, M9): 다른 탭에서 하나씩 누르던 단계를 LangGraph 그래프 하나로 묶어,
 // 사람이 [다음 실행]을 누를 때마다 한 단계(에이전트)씩 넘어간다. 그림은 서버에서 컴파일된 그래프 그대로 그린다.
@@ -284,7 +285,7 @@ export function StepBar({
           {mc && <span className="better small">최소 변경 추천: <code>{mc.path}</code> {mc.current} → <strong>{mc.recommended}</strong> (제안값 {mc.proposed}일 때와 핵심 지표 같음)</span>}
           {approval.opinion_error && <span className="warning-text small">⚠ 의견을 제약으로 정리하지 못했습니다: {approval.opinion_error}. 한도(숫자)를 넣어 다시 적어 주세요.</span>}
           <input className="note" value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder="메모 또는 의견 한 줄 (예: 관할 밖 4km 초과 출동 불가)" aria-label="메모 또는 의견" />
+            placeholder={`메모 또는 의견 한 줄 (예: ${domainTerms()?.opinionExample ?? "관할 밖 4km 초과 출동 불가"})`} aria-label="메모 또는 의견" />
           <button className="primary" onClick={() => onStep("approve")}>승인</button>
           <button onClick={() => onStep("reject")}>반려</button>
           <button onClick={() => onStep("opinion")} disabled={!note.trim()}

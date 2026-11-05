@@ -24,6 +24,7 @@ from core.evaluation.runner import create_ai_run, run_ai_agent, run_rule_agent
 from core.harness.levels import load_levels
 from core.harness.runner import CORE_REASON_CODES
 from core.improvement.changes import spec_sections
+from core.interfaces import DecisionRecord
 from core.llm.client import LLMClient, load_config, make_client
 from core.llm.events import LiveLog
 from core.registry import list_domains, list_faults, load_faults, load_pack, load_params, set_domain_files_root
@@ -291,6 +292,26 @@ def create_app(db_path: str | Path | None = None, serve_web: bool = True,
     def get_decisions(run_id: str):
         run_or_404(run_id)
         return store.get_decisions(run_id)
+
+    @app.get("/runs/{run_id}/view")
+    def get_run_view(run_id: str):
+        """결과 화면용 도메인 데이터 (선택, M21): 팩에 result_view(instance, decisions)가 있을 때만.
+        사람이 보는 화면 전용이다 (재고 도메인: 실제 수요·재고 흐름·발주 권고표). AI 입력에는 쓰지 않는다."""
+        run = run_or_404(run_id)
+        params = run.get("params")
+        pack = load_pack(run["domain"], json.loads(params) if isinstance(params, str) else params)
+        if not hasattr(pack, "result_view"):
+            raise HTTPException(404, f"{run['domain']} 도메인은 결과 화면 데이터를 제공하지 않음")
+        dataset = store.get_dataset(run["dataset_id"])
+        instance, _truth = pack.generate(dataset["seed"], dataset["faults"])
+        scope = run.get("scope")
+        scope = json.loads(scope) if isinstance(scope, str) else scope
+        if scope:
+            instance = pack.subset(instance, scope)
+        decisions = [DecisionRecord(**{k: d[k] for k in ("item_id", "decision", "status", "reason_code", "evidence",
+                                                          "dims", "metrics") if k in d})
+                     for d in store.get_decisions(run_id)]
+        return pack.result_view(instance, decisions)
 
     @app.get("/runs/{run_id}/traces/{item_id}")
     def get_traces(run_id: str, item_id: str):

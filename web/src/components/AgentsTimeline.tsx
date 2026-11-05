@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentEvent, WorkflowStep } from "../types";
+import { L } from "../terms";
 
 // LangGraph agents 상위 타임라인 (M20): 워크플로우 노드 방문 하나 = 한 줄, 회차로 묶는다.
 // 에이전트 안의 턴 단위 진행은 아래 "에이전트 내부"·진행 기록에 있다 (여기는 한 단계 위).
@@ -71,10 +72,10 @@ export default function AgentsTimeline({ steps, running, runningKind, label, pic
         onClick={() => onPick(s.node)} title={s.lines.join("\n")}>
         <span className="agt-time">{clock(s.started ?? s.at)}</span>
         <span className="agt-kind"><i className={`gc-dot ${kind.cls}`} /> {kind.label}</span>
-        <span className="agt-name">{label(s.node)}</span>
+        <span className="agt-name">{L(label(s.node))}</span>
         <span className="agt-text">
           {failed && failed !== s.lines[0] && <span className="critical-text" title={failed}>✕ </span>}
-          {d ? <><strong>{d.word}</strong>{s.decision!.note ? `: ${s.decision!.note}` : ""} · {s.decision!.title}</> : s.lines[0]}
+          {d ? <><strong>{d.word}</strong>{s.decision!.note ? `: ${s.decision!.note}` : ""} · {s.decision!.title}</> : L(s.lines[0])}
         </span>
         <span className="agt-meta">{meta}</span>
       </li>,

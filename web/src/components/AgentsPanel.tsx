@@ -5,7 +5,7 @@ import type { AgentEvent, AgentsGraph, AgentsLoop, AgentsMode, AgentsRecord, Age
 import type { MetricSpec } from "../domains/types";
 import { fmtMetric, fmtUsd } from "./MetricsPanel";
 import { constraintText } from "./ImprovementPanel";
-import { TERMS, tip } from "../terms";
+import { L, TERMS, tip } from "../terms";
 import GraphCanvas, { type NodeView } from "./GraphCanvas";
 import AgentsTimeline from "./AgentsTimeline";
 import SidePanel, { SideGroup } from "./SidePanel";
@@ -185,7 +185,7 @@ export default function AgentsPanel({
     const steps = run?.steps.filter((s) => s.node === n.id) ?? [];
     topViews[n.id] = {
       state: nodeState(n.id, run),
-      summary: steps.length ? steps[steps.length - 1].lines[0] : undefined,
+      summary: steps.length ? L(steps[steps.length - 1].lines[0]) : undefined,
       badge: steps.length > 1 ? `${steps.length}회` : undefined,
       selected: n.id === shown || n.id === picked,
     };
@@ -211,13 +211,13 @@ export default function AgentsPanel({
             </label>
           ))}
         </fieldset>
-        <label title="처리 순서 앞에서부터 이 건수만 배정 에이전트가 처리한다 (비용 때문)">
+        <label title={L("처리 순서 앞에서부터 이 건수만 배정 에이전트가 처리한다 (비용 때문)")}>
           처리할 건수 (1~100) <input type="number" min={1} max={100} value={form.items}
             onChange={(e) => setForm({ ...form, items: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} />
         </label>
       </SideGroup>
       <SideGroup title="에이전트 설정">
-        <label title="배정 에이전트 그래프의 모양을 정한다 (바꾸면 아래 그래프가 바로 다시 그려진다)">
+        <label title={L("배정 에이전트 그래프의 모양을 정한다 (바꾸면 아래 그래프가 바로 다시 그려진다)")}>
           하네스 레벨{" "}
           <select value={form.level} onChange={(e) => { setForm({ ...form, level: e.target.value }); setPicked("dispatch_agent"); }}
             disabled={!!run && run.status !== "done"}>
@@ -408,7 +408,7 @@ function StepResult({ run, node, description }: { run: AgentsRun | null; node: s
       {steps.map((s, k) => (
         <ul key={k} className="wf-lines small">
           {steps.length > 1 && <li className="muted">{k + 1}회차</li>}
-          {s.lines.map((line, j) => <li key={j}>{line}</li>)}
+          {s.lines.map((line, j) => <li key={j}>{L(line)}</li>)}
         </ul>
       ))}
       {run?.error && run.next[0] === node && <p className="critical-text small">✕ {run.error} — [다시 실행]</p>}
@@ -488,19 +488,19 @@ function AgentInside({ graph, agent, run, events, live }: {
   return (
     <div className="panel gc-panel">
       <h2>
-        {AGENT_NAMES[agent] ?? agent} 내부{" "}
+        {L(AGENT_NAMES[agent] ?? agent)} 내부{" "}
         <span className="muted small">(LangGraph 하위 그래프{dispatch ? ` · 하네스 레벨 ${graph?.level}` : ""}{live ? " · 실행 중" : ""})</span>
       </h2>
       <p className="muted small">
         {dispatch
-          ? "지시서마다 이 그래프를 한 바퀴 돈다. 레벨을 올리면 도구 사용 → 규칙 위반 검사·다시 시도 → 위험 결정 확인 → 과정 저장 노드가 붙는다."
+          ? L("지시서마다 이 그래프를 한 바퀴 돈다. 레벨을 올리면 도구 사용 → 규칙 위반 검사·다시 시도 → 위험 결정 확인 → 과정 저장 노드가 붙는다.")
           : agent === "analysis_agent" && graph?.perspectives
           ? "관점별 분석: 관점 노드들이 동시에 돈다(fan-out). 관점 노드 하나가 그 관점의 도구·질문만 가진 분석 에이전트(AI 판단 ⇄ 도구 → 근거 검사)다. 합치기(fan-in)는 같은 구간·사유의 발견을 하나로 묶고 관점마다 다른 해석은 나란히 남긴다."
           : agent === "supervisor_agent"
           ? "Supervisor가 다음 행동을 스스로 고른다: 도구 노드에서 분석 에이전트·개선 에이전트를 부르거나(그 진행은 '분석 R1 · …'처럼 보인다), 미리 돌려보기(진단 신호 포함)·파라미터 훑기를 한다. 판단 보고서는 코드가 검사한다(미리 돌려본 적용 가능한 안만 추천, 근거 수치는 인용한 결과에 있어야 함). 호출 상한 전체 40·분석 3·개선 4, 예산 상한."
           : "AI 판단 ⇄ 도구 사용을 오가다 제출하면 검사한다. 분석·개선 제안 에이전트가 같은 틀(build_tool_agent)을 쓴다."}
       </p>
-      <GraphCanvas ariaLabel={`${AGENT_NAMES[agent] ?? agent} 내부 그래프`} nodes={sub.nodes} edges={sub.edges}
+      <GraphCanvas ariaLabel={`${L(AGENT_NAMES[agent] ?? agent)} 내부 그래프`} nodes={sub.nodes} edges={sub.edges}
         views={views} activeEdges={active} height={360} nodeWidth={150} nodeHeight={70} minFitZoom={0.6} padding={0.24} />
     </div>
   );
@@ -517,7 +517,7 @@ function EventLog({ agent, events, live, graph }: { agent: string; events: Agent
   const name = (id: string) => sub?.nodes.find((n) => n.id === id)?.label ?? id;
   return (
     <div className="panel">
-      <h2>진행 기록 <span className="muted small">{AGENT_NAMES[agent] ?? agent}{live ? " · 실시간" : ""}</span></h2>
+      <h2>진행 기록 <span className="muted small">{L(AGENT_NAMES[agent] ?? agent)}{live ? " · 실시간" : ""}</span></h2>
       <ol className="event-log small" ref={ref} aria-label="에이전트 진행 기록">
         {mine.length === 0 && <li className="muted">아직 실행하지 않았습니다.</li>}
         {mine.slice(-200).map((e) => (
@@ -590,7 +590,7 @@ function LoopPanel({ loop, specs }: { loop: AgentsLoop; specs: MetricSpec[] }) {
         <div className="small">
           <strong>결과 보고</strong>
           <ul>
-            {loop.report.lines.map((l) => <li key={l}>{l}</li>)}
+            {loop.report.lines.map((l) => <li key={l}>{L(l)}</li>)}
             <li>종료 이유: {loop.report.stop_reason}</li>
             <li>남은 문제: {loop.report.remaining.length ? loop.report.remaining.map((f) => `${f.id} ${f.title}`).join(", ") : "없음"}</li>
             <li>AI 비용 합 {fmtUsd(loop.report.cost_usd)} · 시간 합 {loop.report.seconds.toFixed(1)}초</li>

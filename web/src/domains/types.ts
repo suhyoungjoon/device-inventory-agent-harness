@@ -11,6 +11,7 @@ export interface ResultViewProps {
   selected?: string | null;
   onSelect?: (itemId: string) => void;
   highlight?: string[] | null; // 강조할 항목 (나머지는 흐리게)
+  runId?: string | null;       // [M21 추가] 실행 ID (도메인 결과 화면 데이터 GET /runs/{id}/view를 쓰는 어댑터용)
 }
 
 // 득실 지도 기본값 (M13): 처음 열 때 탐색할 파라미터 축과 가로·세로 지표
@@ -22,7 +23,7 @@ export interface TradeoffDefaults {
 export interface MetricSpec {
   key: string;
   label: string;
-  format: "pct" | "min";
+  format: "pct" | "min" | "day" | "manwon";   // [M21 추가] day = 일, manwon = 만원
   headline?: boolean; // 비교표에 넣을 지표
   tech?: string;      // [M8 추가] 원래 용어·계산 방식 (마우스 올림)
   primary?: boolean;  // [M8 추가] 요약에 항상 보일 지표 (나머지는 상세보기). 규칙 위반·건당 비용은 공통 항목이라 따로 보인다
@@ -55,8 +56,20 @@ export interface DomainData {
   View?: ComponentType<DataViewProps>;                                 // 선택한 행을 보여주는 지도 등
 }
 
+// [M21 추가] 공통 화면 문구의 도메인 용어. 없으면 출동 용어(지시서·배정)
+export interface DomainTerms {
+  item: string;     // 결정 대상 한 건 (지시서 / 발주 항목)
+  decide: string;   // 결정하는 일 (배정 / 발주)
+  decided: string;  // 결정 결과 (배정 결과 / 발주 결정)
+  agent: string;    // 결정 에이전트 이름 (배정 에이전트 / 발주 에이전트)
+  unassigned: string; // 결정하지 못한 건 (미배정 / 미발주)
+  unit: string;     // 건수 단위
+  opinionExample?: string;  // 사람 검토 의견 칸의 예시 문장
+}
+
 export interface DomainAdapter {
   ResultView: ComponentType<ResultViewProps>;
+  terms?: DomainTerms;
   metrics: MetricSpec[];
   // 실행 범위 후보 (비용 때문에 AI는 일부만 돌린다). itemIds는 처리 순서
   scopes: (instance: unknown, itemIds: string[]) => Scope[];

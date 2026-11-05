@@ -45,6 +45,8 @@ def _sign(spec: dict) -> int:
 def _fmt(spec: dict, delta: float) -> str:
     if spec.get("format") == "pct":
         return f"{delta * 100:+.1f}%p"
+    if abs(delta) >= 100:   # 금액처럼 큰 값은 소수 없이 천 단위 쉼표 (M21)
+        return f"{delta:+,.0f}{spec.get('unit', '')}"
     return f"{delta:+.2f}{spec.get('unit', '')}"
 
 

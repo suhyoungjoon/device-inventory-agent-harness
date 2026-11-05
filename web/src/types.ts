@@ -299,7 +299,8 @@ export interface Simulation {
   after?: Record<string, number>;
   violations_after?: number;
   violations_before?: number;
-  slices?: Record<string, { before: { items: number; failed: number; fail_rate: number }; after: { items: number; failed: number; fail_rate: number } }>;
+  // label·unit (M21): 도메인이 구간 비교 기준을 정할 때 (예: 결품률, 대)
+  slices?: Record<string, { before: { items: number; failed: number; fail_rate: number; label?: string; unit?: string }; after: { items: number; failed: number; fail_rate: number; label?: string; unit?: string } }>;
   seconds?: number;
   cost_usd?: number;
   run_ids?: Record<string, string>;

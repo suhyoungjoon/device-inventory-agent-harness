@@ -30,3 +30,22 @@ def test_inventory_rule_run(client):
     assert 0 <= run["metrics"]["stockout_rate"] < 0.05
     decisions = client.get(f"/runs/{run['run_id']}/decisions").json()
     assert len(decisions) == 240
+
+
+def test_run_view_for_human_screen(client):
+    ds = client.post("/domains/inventory/datasets", json={"seed": 42, "faults": ["P2"]}).json()
+    body = client.get(f"/domains/inventory/datasets/{ds['id']}").json()
+    run = client.post("/runs", json={"dataset_id": ds["id"], "agent": "rule", "scope": body["item_ids"][:10]}).json()
+    view = client.get(f"/runs/{run['run_id']}/view").json()
+    assert len(view["plan"]) == 10 and len(view["pairs"]) == 10 and len(view["cells"]) == 80   # 서초 × 10모델 × 8주
+    row = view["plan"][0]
+    assert {"forecast", "on_hand", "on_order", "need", "order", "short", "constraint", "evidence"} <= set(row)
+    full = client.post("/runs", json={"dataset_id": ds["id"], "agent": "rule"}).json()
+    plan = client.get(f"/runs/{full['run_id']}/view").json()["plan"]
+    assert any(r["constraint"] == "제조사 공급 한도 초과" for r in plan)      # P2: 제조사 C 공급 한도
+
+
+def test_run_view_missing_for_dispatch(client):
+    ds = client.post("/domains/dispatch/datasets", json={"seed": 1}).json()
+    run = client.post("/runs", json={"dataset_id": ds["id"], "agent": "rule"}).json()
+    assert client.get(f"/runs/{run['run_id']}/view").status_code == 404
