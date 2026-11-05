@@ -565,7 +565,7 @@ const scenes = {
     await openApp(page);
     await page.locator("header select").first().selectOption("inventory");
     await page.getByRole("tab", { name: "비교" }).click();
-    await say(page, "확장: 같은 하네스에 두 번째 업무 '단말 재고·구매'를 도메인 팩으로 추가 (지점 3 × 모델 10 × 8주 = 발주 240건)");
+    await say(page, "확장: 같은 하네스에 두 번째 업무 '단말 재고·구매'를 도메인 팩으로 추가");
     await generate(page, "W1");   // 1주차 전 지점: 표에 세 지점이 다 보인다 (지표는 그 지점×모델의 8주 전체)
     await page.getByRole("button", { name: /규칙 방식 실행/ }).click();
     const grid = page.locator(".inv-grid").first();
@@ -580,13 +580,15 @@ const scenes = {
     await chart.waitFor({ timeout: TIMEOUT });
     await chart.evaluate((n) => n.scrollIntoView({ block: "center" }));
     await page.waitForTimeout(800);   // 막대 그리기 애니메이션
-    await say(page, "칸을 누르면 주차별 흐름: 신규 모델 초반 수요가 갑자기 늘어 이동평균 예측이 늦게 따라가 결품");
+    await say(page, "주차별 흐름: 신규 모델 초반 수요 급증을 예측이 늦게 따라가 결품");
+    await pause(page, 2000);   // 차트를 볼 시간
     // 발주 권고표: 사람이 최종 결정하는 도구
     const plan = page.locator(".inv-plan").first();
     await plan.locator("summary").click();
     await page.waitForTimeout(300);
     await spot(page, plan.locator("tr.constrained"), { key: "plan row",
-      say: "발주 권고표(CSV): 예측·현재고·부족물량·권고 발주량·걸린 제약 (예: 제조사 공급 한도) · 최종 발주는 사람이 정한다" });
+      say: "발주 권고표(CSV): 부족물량·권고 발주량·걸린 제약 · 최종 발주는 사람이 결정" });
+    await pause(page, 2000);   // 표를 볼 시간
 
     await page.getByRole("tab", { name: "LangGraph agents" }).click();
     await page.getByRole("button", { name: "기록 열기" }).click();
@@ -599,16 +601,18 @@ const scenes = {
     fact("record", value);
     const found = await spot(page, page.locator(".agt-row").filter({ hasText: "심어둔 문제" }),
       { key: "analysis", tag: "tool",
-        say: (t) => `실제 AI 실행 기록 (발주 → 분석 → 개선 → 사람 승인) · 분석: ${/심어둔 문제 \d+개 중 \d+개 찾음/.exec(t ?? "")?.[0] ?? cut(t, 30)}` });
+        say: (t) => `실제 AI 실행 기록 · 분석 에이전트: ${/심어둔 문제 \d+개 중 \d+개 찾음/.exec(t ?? "")?.[0] ?? cut(t, 30)}` });
     fact("analysis", found);
     await spot(page, page.locator(".agt-row").filter({ hasText: "승인" }), { key: "approved", tag: "planning",
-      say: (t) => `사람이 승인한 개선안 (규칙 설정값, 구간 조건): ${cut(t.replace(/^.*승인\s*·?\s*/, "").replace(/\s*사람 대기\s*$/, ""), 40)}` });
+      say: (t) => `사람이 승인한 개선안: ${cut(t.replace(/^.*승인\s*·?\s*/, "").replace(/\s*사람 대기\s*$/, ""), 40)}` });
     await page.locator(".loop-panel").scrollIntoViewIfNeeded().catch(() => undefined);
     const line = await text(page.locator(".loop-panel table tbody tr").first());
     fact("loop", line);
     const change = /(\d+\.\d%\s*→\s*\d+\.\d%)/.exec(line ?? "")?.[1] ?? "-";
     await say(page, `승인한 규칙 설정값으로 240건 다시 발주: 결품률 ${change} · 규칙 위반 0건`);
-    await say(page, "도메인 지식은 domains/inventory 폴더와 화면 어댑터에만 · 코어는 선택 훅과 화면 문구만 추가 (출동 그대로)");
+    await say(page, "업무 지식은 도메인 팩(domains/inventory)과 화면 어댑터에만 추가");
+    await say(page, "공통 하네스는 몇 줄만 보탬 · 기존 출동 업무는 그대로 동작");
+    await pause(page, 1500);   // 마지막 자막이 바로 끊기지 않게
   },
 };
 
