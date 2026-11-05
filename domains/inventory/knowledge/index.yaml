@@ -1,0 +1,15 @@
+# 검색 문서 정의. 코어 검색 모듈(core/retrieval)은 이 선언만 안다.
+# 모든 문서는 가상이다 (실제 회사 규정이 아님). 수치는 params.yaml의 허용 범위(bounds)·분류(kinds)와 모순되지 않게 쓴다.
+kinds:                         # 문서 종류 (검색 필터 kind)
+  regulation: 가상 구매 규정 조항 (이 폴더의 *.md)
+  case: 과거 회차 사례 (발견 → 개선안 → 미리 돌려보기 → 승인·반려 사유, DB 기록에서 자동 색인)
+  opinion: 현장 의견 기록 (사람의 한 줄 의견과 정리한 제약)
+fields:                        # 조각 메타데이터 필드 (검색 필터로 쓸 수 있다)
+  area: 규정 분야
+  params: "관련 파라미터 경로 (인덱스 없이, 예: safety.weeks)"
+  dims: "관련 차원 구간 ({차원: [값]})"
+  status: 사례의 결정 (approved | rejected)
+  params_version: 사례·의견이 만들어질 때의 규칙 버전
+areas:                         # 규정 분야 (파일 하나가 한 분야)
+  purchase: 구매 승인·단종 모델 구매
+  stock: 재고 수준·안전재고·예측 보정

@@ -9,6 +9,10 @@
 |---|---|---|---|
 | M21-a | 없음 | 0 / 0 | 도메인 팩 인터페이스(`DomainPack`)와 계약 테스트만으로 붙었다 |
 | M21-b | 없음 | 0 / 0 | 결품·재고일수·공급 사용률은 도메인 `analysis_tools`로 제공. 코어 채점(fault_scorer)·근거 검사를 그대로 썼다 |
+| M21-c | `core/improvement/simulate.py` | +9 / −3 | 개선안 미리 돌려보기의 구간 비교를 도메인이 정하게 (선택 훅 `slice_rates`). 재고는 실패율이 아니라 결품률로 비교해야 한다 |
+| M21-c | `core/improvement/ranking.py` | +5 / −0 | 핵심 지표가 `min_effect`를 선언하면 코어 기본 최소 효과(1%p) 대신 쓴다. 결품률(5% 안팎)에 1%p는 너무 크다 |
+| M21-c | `workflow/agents/api.py` | +12 / −3 | LangGraph agents 탭의 "가짜 AI"가 출동 리허설 정책에 고정돼 있었다. `tests/<도메인>_fake.py`가 있으면 그 정책을 쓴다 |
+| **합계** | **3파일** | **+26 / −6** | 모두 추가(선택 훅·선택 키). 출동 동작은 그대로 (출동 테스트 전부 통과) |
 
 ## 단계별 메모
 
@@ -30,3 +34,13 @@
 - 결품은 "발주 실패"가 아니라 코어 집계(`aggregate`)에 안 잡힌다. 도메인 분석 도구 `stockout_by`(차원별 결품률·재고일수)가 같은 차원 이름으로 집계해, 코어 채점의 구간형 정답(`answer.dims`)과 그대로 맞물린다.
 - 분석 도구 5개: `stockout_by`, `branch_stock_stats`(P3), `supply_usage`(P2), `forecast_error`, `demand_volatility`(P4).
 - 숫자 보정 (결함이 드러나고 P4가 bounds 안에서 고쳐지게): 초기 재고 1.5~2.5주 → 2.5~3.5주(1·2주차 결품은 어떤 파라미터로도 못 고쳐 P4 개선이 묻혔다), 주간 예산 90,000 → 110,000만원(P4 개선안이 예산에 막혔다), 공급 한도 MA 450 → 500·MB 360 → 420(P3의 서초 과잉 발주가 다른 지점 신규 모델 공급을 막아 P1 구간과 섞였다), P4 변동계수 0.45 → 0.6.
+
+### M21-c (AI 하네스 메서드, 분석 관점, 가상 구매 규정, 가짜 LLM 루프)
+
+코어 변경 3파일 +26/−6줄. 모두 "있으면 쓰고 없으면 예전 그대로"인 추가다.
+
+1. **`core/improvement/simulate.py` — 선택 훅 `slice_rates(instance, decisions, filters)`.** 개선안 미리 돌려보기는 발견 구간의 전후를 코어 집계 실패율(`status != success`)로 비교했다. 재고 도메인의 개선(플래그십 안전재고)은 발주 실패가 아니라 결품을 줄이므로 실패율로는 0 → 0이라 효과가 안 보였다. 화면의 "조건의 실패율"과 Supervisor 진단 신호(목표 구간 변화)가 모두 이 값을 쓴다. 팩이 훅을 가지면 같은 키(`items`, `failed`, `fail_rate`)에 `label`("결품률")을 더해 돌려준다. 화면 문구가 label을 따르게 하는 것은 M21-d.
+2. **`core/improvement/ranking.py` — 핵심 지표별 `min_effect`.** 코어 기본 최소 효과 1%p 아래면 개선안을 "참고"로 접는다. 결함 네 개를 모두 켠 seed 42에서 플래그십 안전재고 2주의 결품률 개선은 5.05% → 4.31%(−0.74%p, 상대 −15%)라 본안에서 빠졌다. 도메인 `dimensions.yaml`의 핵심 지표가 `min_effect`를 선언하면 그 값을 쓴다(재고: 0.005).
+3. **`workflow/agents/api.py` — 도메인별 가짜 AI.** LangGraph agents 탭의 "가짜 AI"(리허설용, API 키 없음)가 출동 정책(`scripts/rehearsal_bundle.py`)에 고정돼 재고 도메인에서 `worker_id` 오류로 멈췄다. `tests/<도메인>_fake.py`의 `build_policy`가 있으면 그것을 쓴다.
+
+도메인 쪽: `analysis_perspectives.yaml`(결품 패턴·재고 효율·공급·예산 제약), `knowledge/`(가상 구매 규정 8조항, `limits.yaml` 3개: 재고일수 21일, 안전재고 3주, 신제품 보정 2.0배), `tests/inventory_fake.py`(가짜 발주·분석·개선·의견·Supervisor).

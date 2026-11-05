@@ -8,6 +8,7 @@
   같은 핵심 지표를 내는 가장 작은 변경을 찾는다.
 
 기준값은 configs/proposals.yaml(코어 설정), 핵심 지표와 방향은 도메인 dimensions()["metrics"]에서 읽는다.
+핵심 지표에 min_effect가 선언돼 있으면 코어 설정 대신 그 값을 쓴다.
 """
 
 import copy
@@ -87,6 +88,10 @@ def rank_proposals(proposals: list[dict], specs: list[dict], config: dict | None
     """
     cfg = {**DEFAULTS, **(config or {})}
     primary = [s for s in specs if s.get("primary")]
+    # 핵심 지표가 최소 효과를 직접 선언하면 그 값을 쓴다 (M21: 결품률처럼 값의 범위가 작은 지표)
+    declared = [s["min_effect"] for s in primary if isinstance(s.get("min_effect"), (int, float))]
+    if declared:
+        cfg["min_effect"] = min(declared)
     entries, cands = {}, []
     for p in proposals:
         pid, sim = p["id"], p.get("simulation") or None

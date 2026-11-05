@@ -44,9 +44,18 @@ class AgentsStart(BaseModel):
 
 def _fake_llm_factory(ctx):
     """리허설 번들과 같은 가짜 AI (scripts/rehearsal_bundle.py의 정책). 레포에서 실행할 때만 쓸 수 있다.
-    수치는 AI 성능과 무관하다 (흐름 확인용)."""
-    from scripts.rehearsal_bundle import build_policy
+    수치는 AI 성능과 무관하다 (흐름 확인용).
+    도메인 전용 가짜 정책 tests/<도메인>_fake.py(build_policy)가 있으면 그것을 쓴다 (M21: 두 번째 도메인)."""
+    import importlib
+
+    from scripts.rehearsal_bundle import build_policy as dispatch_policy
     from tests.fake_llm import FakeLLM, tool_use
+
+    def domain_policy(pack):
+        try:
+            return importlib.import_module(f"tests.{pack.name}_fake").build_policy
+        except ModuleNotFoundError:
+            return dispatch_policy
 
     def policy(base):
         # 조회 도구가 있는 레벨이면 결정 전에 후보 조회를 한 번 한다 (화면에서 "조회 도구" 노드가 보이게)
@@ -61,7 +70,7 @@ def _fake_llm_factory(ctx):
 
     def make(role=None):
         if "fake_policy" not in ctx.data:
-            ctx.data["fake_policy"] = policy(build_policy(ctx.data["pack"], ctx.data["instance"]))
+            ctx.data["fake_policy"] = policy(domain_policy(ctx.data["pack"])(ctx.data["pack"], ctx.data["instance"]))
         return FakeLLM(ctx.data["fake_policy"])
 
     return make

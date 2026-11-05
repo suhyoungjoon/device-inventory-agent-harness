@@ -99,6 +99,14 @@ class InventoryPack:
     def analysis_tools(self, instance: Instance, decisions: list[DecisionRecord]) -> list[dict]:
         return build_analysis_tools(instance, decisions, self.params)
 
+    # --- 선택 기능 (M21): 개선안 미리 돌려보기의 구간 비교를 결품률로 (core.improvement.simulate가 있으면 쓴다) ---
+    def slice_rates(self, instance: Instance, decisions: list[DecisionRecord], filters: dict) -> dict:
+        """구간의 결품: items = 수요(대), failed = 못 판 수요(대), fail_rate = 결품률. 선언되지 않은 차원이면 ValueError."""
+        tool = next(t for t in build_analysis_tools(instance, decisions, self.params) if t["name"] == "stockout_by")
+        r = tool["handler"]({"group_by": [], "filters": filters})
+        return {"items": r["demand"], "failed": r["lost"], "fail_rate": r["stockout_rate"],
+                "label": "결품률", "unit": "대"}
+
 
 def get_pack(params: dict | None = None) -> InventoryPack:
     return InventoryPack(params)
