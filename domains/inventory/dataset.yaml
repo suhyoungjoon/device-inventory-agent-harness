@@ -1,0 +1,33 @@
+# 가상 데이터 생성 설정 (규칙 파라미터가 아니라 "현실" 설정). 실제 단말 모델명·제조사명·가격은 쓰지 않는다.
+# 수요 단위: 대/주. 단가 단위: 만원.
+
+weeks: 8                        # 계획 기간
+history_weeks: 26               # 과거 이력
+
+branches:                       # demand_scale: 모델 기본 수요에 곱하는 지점 규모
+  A: {name: 서초지점, demand_scale: 1.0, warehouse_capacity: 1200}
+  B: {name: 강남지점, demand_scale: 1.2, warehouse_capacity: 1400}
+  C: {name: 송파지점, demand_scale: 0.8, warehouse_capacity: 1000}
+
+makers:                         # supply_cap: 제조사 주간 공급 한도 (세 지점 합, 대)
+  MA: {name: 제조사 A, supply_cap: 450}
+  MB: {name: 제조사 B, supply_cap: 360}
+  MC: {name: 제조사 C, supply_cap: 260}
+
+models:                         # base: 계획 1주 기준 주간 수요 (지점 규모 1.0)
+  M01: {name: A-플래그십-1, family: flagship,    maker: MA, phase: main, unit_cost: 150, base: 20}
+  M02: {name: A-플래그십-2, family: flagship,    maker: MA, phase: new,  unit_cost: 170, base: 18, launch_offset: 4}
+  M03: {name: B-플래그십-1, family: flagship,    maker: MB, phase: main, unit_cost: 140, base: 16}
+  M04: {name: C-플래그십-1, family: flagship,    maker: MC, phase: main, unit_cost: 130, base: 12}
+  M05: {name: A-보급형-1,   family: mid,         maker: MA, phase: main, unit_cost: 60,  base: 30}
+  M06: {name: B-보급형-1,   family: mid,         maker: MB, phase: new,  unit_cost: 55,  base: 20, launch_offset: 4}
+  M07: {name: B-보급형-2,   family: mid,         maker: MB, phase: eol,  unit_cost: 50,  base: 15, eol_week: 5}
+  M08: {name: C-보급형-1,   family: mid,         maker: MC, phase: main, unit_cost: 50,  base: 25}
+  M09: {name: A-키즈-1,     family: kids_senior, maker: MA, phase: main, unit_cost: 30,  base: 8}
+  M10: {name: C-시니어-1,   family: kids_senior, maker: MC, phase: eol,  unit_cost: 35,  base: 6,  eol_week: 6}
+
+demand:
+  cv: {flagship: 0.15, mid: 0.15, kids_senior: 0.2}   # 주간 변동(변동계수)
+  new_growth: 0.08              # 신규 모델 주간 수요 증가율 (출시 후 계속 오름)
+  eol_decline: 0.10             # 단종 예정 모델 주간 수요 감소율
+  initial_stock_weeks: [1.5, 2.5]   # 계획 1주 시작 재고 = 기본 수요 × 이 범위의 무작위 주 수

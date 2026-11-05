@@ -1,0 +1,70 @@
+# inventory 규칙 파라미터 (초안).
+# 개선 루프는 각 섹션의 bounds 안에서만 값을 바꿀 수 있다. 개선안이 바꿀 수 있는 것은 kinds가 policy인 키뿐이다.
+# 수요 예측은 규칙 계산(이동평균 × 신제품 보정)이다. AI는 예측값을 직접 내지 않고 이 파라미터를 바꾸는 개선안을 낸다.
+# 변경이 승인되면 version을 올리고 git 커밋으로 남긴다.
+
+version: 1
+
+forecast:                       # 예측 수요 = 최근 window_weeks주 관측 수요 이동평균 (신규 모델은 × new_model_boost)
+  window_weeks: 4
+  new_model_boost: 1.2
+  docs:
+    window_weeks: 예측 이동평균에 쓰는 최근 주 수. 짧을수록 최근 변화를 빨리 따라가지만 들쭉날쭉하다
+    new_model_boost: 출시 단계가 신규인 모델의 예측에 곱하는 보정. 출시 직후 수요가 오르는 동안 이동평균이 늦게 따라가는 것을 메운다
+  bounds: {window_weeks: [2, 12], new_model_boost: [1.0, 3.0]}
+  kinds: {window_weeks: policy, new_model_boost: policy}
+
+safety:                         # 안전재고 = 예측 × weeks
+  weeks: 1.0
+  docs:
+    weeks: 안전재고를 예측 수요 몇 주 치로 둘지. 늘리면 결품이 줄고 재고·구매 금액이 는다
+  bounds: {weeks: [0.0, 4.0]}
+  kinds: {weeks: policy}
+
+review:                         # 검토주기: 발주가 다음 검토까지 버텨야 하는 주 수
+  cycle_weeks: 1
+  docs:
+    cycle_weeks: 발주량을 정할 때 리드타임에 더해 대비하는 주 수 (발주 목표 = 예측 × (리드타임 + 검토주기) + 안전재고)
+  bounds: {cycle_weeks: [1, 2]}
+  kinds: {cycle_weeks: policy}
+
+supply:
+  lead_time_weeks: {MA: 1, MB: 2, MC: 1}
+  docs:
+    lead_time_weeks: 제조사별 발주 후 입고까지 걸리는 주 수. 실제 공급 실적으로 사람이 바꾸는 추정값이다
+  bounds: {lead_time_weeks: [1, 4]}
+  kinds: {lead_time_weeks: estimate}
+
+order:
+  moq: 5
+  docs:
+    moq: 최소 발주 단위(대). 발주량은 이 값의 배수여야 한다
+  bounds: {moq: [5, 5]}
+  kinds: {moq: fixed}
+
+budget:
+  weekly_cap: 90000
+  docs:
+    weekly_cap: 주간 구매 예산 승인 한도(만원). 한 주의 발주 금액 합이 이 값을 넘으면 안 된다
+  bounds: {weekly_cap: [90000, 90000]}
+  kinds: {weekly_cap: governance}
+
+approval:                       # L4 가드레일: 아래 중 하나라도 해당하면 pending_approval
+  order_amount_gte: 7500        # 한 건 발주 금액(만원)이 이 값 이상
+  eol_order: true               # 단종 예정 모델을 발주
+  docs:
+    order_amount_gte: 한 건 발주 금액(만원)이 이 값 이상이면 승인 대기 (L4 이상)
+    eol_order: 켜져 있으면 단종 예정 모델을 발주할 때 승인 대기 (L4 이상)
+  bounds: {order_amount_gte: [1000, 100000]}
+  kinds: {order_amount_gte: governance, eol_order: governance}
+
+evaluation:                     # 지표 계산 기준 (규칙 동작에는 쓰지 않는다)
+  excess_weeks: 4
+  docs:
+    excess_weeks: 계획 끝 재고(입고 예정 포함)가 실제 주평균 수요의 몇 주 치를 넘으면 과잉재고로 셀지
+  bounds: {excess_weeks: [4, 4]}
+  kinds: {excess_weeks: fixed}
+
+overrides:                      # 구간 조건: when의 차원 값에 해당하는 항목에만 set을 적용
+  allowed_sections: [forecast, safety, review]   # 정책 섹션만. 검증 기준(예산·발주 단위)·추정값·승인 조건은 제외
+  rules: []                     # 예: {when: {family: flagship}, set: {"safety.weeks": 2.0}}
