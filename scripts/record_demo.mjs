@@ -574,6 +574,19 @@ const scenes = {
     fact("rule_stockout_rate", rate);
     await spot(page, grid.locator("td.inv-cell").filter({ hasText: "18.5%" }), { key: "hot cell",
       say: `결과 화면만 도메인 전용(지점×모델 결품률 표) · 규칙 엔진 결품률 ${rate} · 빨간 칸 = 숨겨 둔 문제` });
+    // 칸을 누르면 주차별 흐름 (수요·발주·결품·재고)
+    await grid.locator("td.inv-cell").filter({ hasText: "18.5%" }).first().click();
+    const chart = page.locator(".inv-chart").first();
+    await chart.waitFor({ timeout: TIMEOUT });
+    await chart.evaluate((n) => n.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(800);   // 막대 그리기 애니메이션
+    await say(page, "칸을 누르면 주차별 흐름: 신규 모델 초반 수요가 갑자기 늘어 이동평균 예측이 늦게 따라가 결품");
+    // 발주 권고표: 사람이 최종 결정하는 도구
+    const plan = page.locator(".inv-plan").first();
+    await plan.locator("summary").click();
+    await page.waitForTimeout(300);
+    await spot(page, plan.locator("tr.constrained"), { key: "plan row",
+      say: "발주 권고표(CSV): 예측·현재고·부족물량·권고 발주량·걸린 제약 (예: 제조사 공급 한도) · 최종 발주는 사람이 정한다" });
 
     await page.getByRole("tab", { name: "LangGraph agents" }).click();
     await page.getByRole("button", { name: "기록 열기" }).click();
@@ -588,6 +601,8 @@ const scenes = {
       { key: "analysis", tag: "tool",
         say: (t) => `실제 AI 실행 기록 (발주 → 분석 → 개선 → 사람 승인) · 분석: ${/심어둔 문제 \d+개 중 \d+개 찾음/.exec(t ?? "")?.[0] ?? cut(t, 30)}` });
     fact("analysis", found);
+    await spot(page, page.locator(".agt-row").filter({ hasText: "승인" }), { key: "approved", tag: "planning",
+      say: (t) => `사람이 승인한 개선안 (규칙 설정값, 구간 조건): ${cut(t.replace(/^.*승인\s*·?\s*/, "").replace(/\s*사람 대기\s*$/, ""), 40)}` });
     await page.locator(".loop-panel").scrollIntoViewIfNeeded().catch(() => undefined);
     const line = await text(page.locator(".loop-panel table tbody tr").first());
     fact("loop", line);

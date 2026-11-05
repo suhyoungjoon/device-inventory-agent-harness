@@ -78,7 +78,7 @@ python -m scripts.demo_take check|reset  # 시연 동영상 테이크 점검·�
 node scripts/record_demo.mjs --url http://127.0.0.1:8010 --allow-live --scenes v1,v2,v3,v4,v5,v6 --take t1   # 시연 동영상 장면 (실제 AI, 비용)
 python -m scripts.make_demo_video --take t1 --out 사번_성명_시연영상.mp4   # 후처리: AI 대기 구간만 배속(짧은 대기 --speed, 1분 넘으면 --long-speed 범위) + 제목 카드·태그 범례 → runs/recordings/, 제출 기준(5분·500MB·1080p) 점검 (ffmpeg)
 node scripts/record_demo.mjs --url http://127.0.0.1:8004 --allow-live --scenes v7 --take inv3 --stills   # M21 장면 v7 단말 재고 확장 (규칙 실행 + 저장한 실제 AI 기록 재생, AI 호출 없음. 기록은 LangGraph agents 탭에서 실제 AI로 한 번 돌려 저장)
-python -m scripts.make_demo_video --dir ../optimization-agent-harness/runs/recordings --take final2 --speed 4 --long-speed 6-12 --long-target 25 --scenes v1,v2,v3,v4,v6,v7 --scene-dir v7=runs/recordings --scene-long-speed v4=20-20 --work runs/recordings/combined --title "출동 배정 최적화 · 하네스 기반 AI 에이전트 시연 (+ 단말 재고 확장)" --out 04272_서영준_시연영상_재고확장.mp4   # 기존 영상(v5 빼고 v4 20배속) + v7, 기존 레포 녹화 폴더는 읽기만
+python -m scripts.make_demo_video --dir ../optimization-agent-harness/runs/recordings --take final2 --speed 4 --long-speed 6-12 --long-target 25 --scenes v1,v2,v3,v4,v6,v7 --scene-dir v7=runs/recordings --scene-long-speed v2=12-12 --scene-long-speed v4=25-25 --scene-caption "v6=이번 실행 1회차 69.3% → 70.5% · 반영은 사람 승인 뒤에만" --work runs/recordings/combined --title "출동 배정 최적화 · 하네스 기반 AI 에이전트 시연 (+ 단말 재고 확장)" --out 04272_서영준_시연영상_재고확장.mp4   # 기존 영상(v5 빼고, v2 12배속·v4 25배속, v6 자막에서 v5 실적 언급 지움) + v7, 기존 레포 녹화 폴더는 읽기만
 python -m scripts.m15_eval all --max-usd 3   # M15 로컬 확인 실험: 임베딩·RAG 있이/없이·고정 규칙 vs Supervisor (실제 API, runs/m15_eval)
 python -m scripts.m18_eval all --repeats 3 --max-usd 15   # M18 평가: 고정 흐름 vs 분석·개선 Supervisor, S1~S3 (실제 API, runs/m18_eval, --fake면 비용 0)
 ```

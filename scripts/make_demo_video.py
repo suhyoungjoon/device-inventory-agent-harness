@@ -111,8 +111,21 @@ def align(marks: list[dict], wall: float | None, total: float) -> tuple[list[dic
     return [{**m, "start": m["start"] * k, "end": m["end"] * k} for m in marks], k
 
 
+# 녹화 자막 상자 자리 (record_demo.mjs caption: 하단 28px · 가운데, 1600×900 녹화에서 x 422~1178 · y 820~872)를 출력 비율로.
+# 자막을 바꿀 때(--scene-caption) 이 자리를 자막과 같은 색 상자로 덮고 새 문장을 쓴다
+CAPTION_BOX = (0.258, 0.905, 0.484, 0.068)   # x, y, 너비, 높이 (출력 크기 대비)
+
+
+def caption_filter(text: str, font: str) -> str:
+    x, y, w, h = (round(v * d) for v, d in zip(CAPTION_BOX, (W, H, W, H)))
+    return (f",drawbox=x={x}:y={y}:w={w}:h={h}:color=0x141413@1:t=fill"
+            f",drawtext=fontfile='{font}':text='{esc(text)}':fontsize=27:fontcolor=white"
+            f":expansion=none:x=(w-tw)/2:y={y}+({h}-th)/2")
+
+
 def encode_scene(src: Path, marks: list[dict], dst: Path, base: float, long_range: tuple[float, float],
-                 font: str, live: bool, wall: float | None = None, target: float = LONG_TARGET) -> dict:
+                 font: str, live: bool, wall: float | None = None, target: float = LONG_TARGET,
+                 caption: str | None = None) -> dict:
     total = duration(src)
     marks, stretch = align(marks, wall, total)
     segs = segments(marks, total)
@@ -126,7 +139,8 @@ def encode_scene(src: Path, marks: list[dict], dst: Path, base: float, long_rang
             chain += (f",setpts=PTS/{k},drawtext=fontfile='{font}':text='{label}':fontsize=36:fontcolor=white"
                       f":box=1:boxcolor=0x141413@0.85:boxborderw=14:x=w-tw-40:y=36")
         chains.append(chain + f",fps={FPS},scale={W}:{H}:force_original_aspect_ratio=decrease,"
-                      f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0xfafafa,setsar=1[p{i}]")
+                      f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0xfafafa,setsar=1"
+                      + (caption_filter(caption, font) if caption else "") + f"[p{i}]")
         parts.append(f"[p{i}]")
     graph = ";".join(chains) + f";{''.join(parts)}concat=n={len(parts)}:v=1:a=0,format=yuv420p[out]"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", graph, "-map", "[out]",
@@ -184,9 +198,12 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--scene-long-speed", action="append", default=[], help="장면별 긴 대기 배율 범위 (예: v4=20-20)")
     ap.add_argument("--work", default=None, help="중간 파일·결과를 쓸 폴더 (없으면 --dir). 다른 레포 녹화 폴더를 건드리지 않을 때")
     ap.add_argument("--title", default=TITLE)
+    ap.add_argument("--scene-caption", action="append", default=[],
+                    help="장면 자막 바꾸기 (예: v6=새 문장). 녹화된 자막 상자를 덮고 새 문장을 쓴다 (장면 전체, 그 장면 자막이 하나일 때)")
     args = ap.parse_args(argv)
     scene_dirs = dict(kv.split("=", 1) for kv in args.scene_dir)
     scene_long = {k: tuple(float(x) for x in v.split("-")) for k, v in (kv.split("=", 1) for kv in args.scene_long_speed)}
+    scene_caption = dict(kv.split("=", 1) for kv in args.scene_caption)
     need_ffmpeg()
     font = font_file(args.font)
     lo, hi = (float(x) for x in args.long_speed.split("-"))
@@ -212,7 +229,7 @@ def main(argv: list[str] | None = None) -> None:
         mdata = json.loads(mpath.read_text(encoding="utf-8")) if mpath.is_file() else {}
         dst = parts / f"{sid}.mp4"
         report[sid] = encode_scene(src, mdata.get("marks", []), dst, args.speed, scene_long.get(sid, (lo, hi)), font, live,
-                                   mdata.get("seconds"), args.long_target)
+                                   mdata.get("seconds"), args.long_target, scene_caption.get(sid))
         clips.append(dst)
         r = report[sid]
         speeds = ", ".join(f"{sp['end'] - sp['start']:.0f}초×1/{sp['speed']:g}" for sp in r["fast_spans"]) or "배속 없음"
@@ -226,7 +243,8 @@ def main(argv: list[str] | None = None) -> None:
     problems = check_submission(out, report)
     (work / f"{out.stem}.json").write_text(json.dumps(
         {"take": take.get("take"), "live": live, "speed": args.speed, "long_speed": [lo, hi],
-         "scene_dirs": scene_dirs, "scene_long_speed": {k: list(v) for k, v in scene_long.items()}, "seconds": round(info["seconds"], 1),
+         "scene_dirs": scene_dirs, "scene_long_speed": {k: list(v) for k, v in scene_long.items()},
+         "scene_caption": scene_caption, "seconds": round(info["seconds"], 1),
          "bytes": out.stat().st_size, "format": info, "scenes": report, "problems": problems}, ensure_ascii=False, indent=1),
         encoding="utf-8")
     print(f"완성: {out} ({info['seconds'] / 60:.2f}분 · {out.stat().st_size / 1024 / 1024:.1f}MB · "
