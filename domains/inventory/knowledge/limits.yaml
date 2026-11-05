@@ -1,0 +1,6 @@
+# 코드로 셀 수 있는 규정 한도 (평가용). 제약 형식(core.improvement.constraints)과 같다.
+# 조항 본문(*.md)의 숫자와 같아야 한다 (tests/test_inventory_ai.py가 검사).
+limits:
+  - {clause: STK-01, type: metric, metric: avg_stock_days, max: 21, source: 가상 구매 규정}
+  - {clause: STK-02, type: param, path: safety.weeks, max: 3, source: 가상 구매 규정}
+  - {clause: STK-03, type: param, path: forecast.new_model_boost, max: 2.0, source: 가상 구매 규정}

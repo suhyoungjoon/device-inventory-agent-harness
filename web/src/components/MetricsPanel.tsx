@@ -1,11 +1,20 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DecisionRecord, Run } from "../types";
 import type { MetricSpec } from "../domains/types";
-import { TERMS, tip } from "../terms";
+import { L, TERMS, tip } from "../terms";
 import Details from "./Details";
 
 export const fmtMetric = (v: number | null | undefined, f: MetricSpec["format"]) =>
-  v === undefined || v === null ? "–" : f === "pct" ? `${(v * 100).toFixed(1)}%` : `${v.toFixed(1)}분`;
+  v === undefined || v === null ? "–" : f === "pct" ? `${(v * 100).toFixed(1)}%`
+    : f === "day" ? `${v.toFixed(1)}일` : f === "manwon" ? `${Math.round(v).toLocaleString()}만원` : `${v.toFixed(1)}분`;
+
+// 지표 변화량 (+1.2%p, −3.0분, +1,200만원)
+export const fmtMetricDelta = (d: number, f: MetricSpec["format"]) => {
+  const sign = d > 0 ? "+" : "";
+  if (f === "pct") return `${sign}${(d * 100).toFixed(1)}%p`;
+  if (f === "manwon") return `${sign}${Math.round(d).toLocaleString()}만원`;
+  return `${sign}${d.toFixed(1)}${f === "day" ? "일" : "분"}`;
+};
 
 export const fmtUsd = (v: number | null | undefined) =>
   v === undefined || v === null ? "–" : v === 0 ? "$0" : v < 0.01 ? `$${v.toFixed(4)}` : `$${v.toFixed(2)}`;
@@ -57,7 +66,7 @@ export default function MetricsPanel({
       <div className="tile-value">{fmtMetric(run.metrics?.[s.key], s.format)}</div>
     </div>
   );
-  const moreLabel = [`지표 ${rest.length + 1}개 더`, reasons.length ? TERMS.reasons.label : "", violations.length ? `어긴 내용 ${violations.length}건` : ""]
+  const moreLabel = [`지표 ${rest.length + 1}개 더`, reasons.length ? L(TERMS.reasons.label) : "", violations.length ? `어긴 내용 ${violations.length}건` : ""]
     .filter(Boolean).join(" · ");
 
   return (
@@ -95,7 +104,7 @@ export default function MetricsPanel({
 
       {reasons.length > 0 && (
         <figure className="chart">
-          <figcaption title={tip("reasons")}>{TERMS.reasons.label}별 건수</figcaption>
+          <figcaption title={tip("reasons")}>{L(TERMS.reasons.label)}별 건수</figcaption>
           <ResponsiveContainer width="100%" height={36 + reasons.length * 30}>
             <BarChart data={reasons} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 8 }}>
               <CartesianGrid horizontal={false} stroke="var(--grid)" />

@@ -9,7 +9,7 @@ import ImprovementPanel from "./components/ImprovementPanel";
 import TracePanel from "./components/TracePanel";
 import { adapters } from "./domains";
 import type { Scope } from "./domains/types";
-import { CORE_REASON_NAMES, TERMS, tip, type TermKey } from "./terms";
+import { CORE_REASON_NAMES, setDomainTerms, TERMS, tip, type TermKey } from "./terms";
 import type { CompareSummary, Dataset, DecisionRecord, DemoCatalogEntry, DomainInfo, HarnessInfo, Run, WorkflowRun } from "./types";
 
 // LangGraph 탭 두 개는 탭을 열 때 불러온다 (그래프 라이브러리 React Flow가 커서 첫 화면을 가볍게)
@@ -76,6 +76,7 @@ export default function App() {
 
   const domain = domains.find((d) => d.name === domainName);
   const adapter = domain ? adapters[domain.name] : undefined;
+  setDomainTerms(adapter?.terms);   // [M21] 공통 화면 문구를 이 도메인 용어로 (L())
   // 사유 코드: 화면에는 짧은 이름, 마우스를 올리면 설명 문장
   const reasonDetails = useMemo(
     () => ({ ...(domain?.core_reason_codes ?? {}), ...(domain?.dimensions.reason_codes ?? {}) }),

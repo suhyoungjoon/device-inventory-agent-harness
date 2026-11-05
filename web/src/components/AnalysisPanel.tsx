@@ -233,7 +233,7 @@ export default function AnalysisPanel({
               <h2>{focused ? `${focused.id} ${TERMS.slice.label}` : "분석한 결과"}</h2>
               {dataset.instance && decisions.length > 0 && analyzedRun ? (
                 <adapter.ResultView instance={dataset.instance} decisions={decisions} dimensions={domain.dimensions}
-                  reasonLabels={reasonLabels} reasonDetails={reasonDetails} highlight={highlight} />
+                  reasonLabels={reasonLabels} reasonDetails={reasonDetails} highlight={highlight} runId={analyzedRun.run_id} />
               ) : (
                 <p className="muted">결과를 불러오는 중…</p>
               )}

@@ -28,6 +28,8 @@ export interface RunOptions {
 }
 
 export const api = {
+  // 도메인 결과 화면 데이터 (M21, 팩에 result_view가 있을 때만)
+  runView: <T,>(runId: string) => request<T>(`/runs/${runId}/view`),
   // 에이전트 탭 (M16)
   agentTabInfo: () => request<AgentTabInfo>("/agent-tab/info"),
   agentTabSources: () => request<AgentTabSources>("/agent-tab/sources"),

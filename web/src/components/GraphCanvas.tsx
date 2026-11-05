@@ -6,6 +6,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useState } from "react";
 import type { WorkflowEdge, WorkflowNode } from "../types";
+import { L } from "../terms";
 
 // 서버가 컴파일한 LangGraph 그래프(get_graph의 노드·연결)를 왼쪽→오른쪽으로 자동 배치해 그린다 (M11).
 // 되돌아가는 연결은 노드 아래로 도는 곡선, 자기 자신으로 돌아가는 연결은 노드 위의 고리로 그린다.
@@ -49,7 +50,7 @@ function Card({ data }: NodeProps<Node<CardData>>) {
       {handles}
       <div className="gc-head">
         {MARK[st] && <span className="gc-mark" aria-hidden>{MARK[st]}</span>}
-        <strong>{node.label ?? node.id}</strong>
+        <strong>{L(node.label ?? node.id)}</strong>
         {view.badge && <span className="gc-badge">{view.badge}</span>}
       </div>
       {showIds && (

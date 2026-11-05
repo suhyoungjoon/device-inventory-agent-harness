@@ -110,3 +110,29 @@ export function levelShortName(levels: Record<string, HarnessLevel>, name: strin
   if (added.length) return added.map((a) => `+${a}`).join(" ");
   return prev ? "" : "기본";
 }
+
+// [M21 추가] 공통 화면 문구의 도메인 용어. 화면에 한 도메인만 보이므로 App이 고른 도메인의 용어를 정해 둔다.
+// 용어가 없는 도메인(출동)은 문구를 그대로 둔다.
+import type { DomainTerms } from "./domains/types";
+
+let activeTerms: DomainTerms | undefined;
+
+export function setDomainTerms(terms: DomainTerms | undefined) {
+  activeTerms = terms;
+}
+
+export const domainTerms = () => activeTerms;
+
+/** 출동 용어(지시서·배정·미배정)를 지금 도메인의 용어로 바꾼다 */
+export function L(text: string): string;
+export function L(text: string | undefined): string | undefined;
+export function L(text: string | undefined): string | undefined {
+  const t = activeTerms;
+  if (!t || !text) return text;
+  return text
+    .replace(/배정 에이전트/g, t.agent)
+    .replace(/미배정/g, t.unassigned)
+    .replace(/재배정/g, `다시 ${t.decide}`)
+    .replace(/지시서/g, t.item)
+    .replace(/배정/g, t.decide);
+}

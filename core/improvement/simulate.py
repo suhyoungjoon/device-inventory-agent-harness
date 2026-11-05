@@ -10,11 +10,17 @@ from core.analysis.aggregate_tools import Aggregator
 from core.interfaces import DomainPack
 
 
-def _slice_rates(decisions, dimensions: dict, slices: dict[str, dict]) -> dict[str, dict]:
+def _slice_rates(decisions, dimensions: dict, slices: dict[str, dict], pack=None, instance=None) -> dict[str, dict]:
+    """구간별 실패율. 도메인 팩에 slice_rates(instance, decisions, filters)가 있으면 그 값을 쓴다 (M21:
+    재고 도메인은 발주 실패가 아니라 결품률로 구간을 비교한다. 같은 키 items·failed·fail_rate에 label을 더해 돌려준다)."""
+    custom = getattr(pack, "slice_rates", None)
     agg = Aggregator(decisions, dimensions)
     out = {}
     for key, filters in slices.items():
         try:
+            if custom is not None:
+                out[key] = custom(instance, decisions, filters)
+                continue
             r = agg.aggregate({"group_by": [], "filters": filters})
         except ValueError:
             continue
@@ -38,7 +44,7 @@ def simulate_params(pack_factory, instance, base_params: dict, candidate_params:
         "after": cand_pack.metrics(instance, after),
         "violations_before": len(base_pack.validate(instance, before)),
         "violations_after": len(cand_pack.validate(instance, after)),
-        "slices": {k: {"before": v, "after": _slice_rates(after, dims, {k: slices[k]})[k]}
-                   for k, v in _slice_rates(before, dims, slices or {}).items()},
+        "slices": {k: {"before": v, "after": _slice_rates(after, dims, {k: slices[k]}, cand_pack, instance)[k]}
+                   for k, v in _slice_rates(before, dims, slices or {}, base_pack, instance).items()},
         "seconds": time.time() - started,
     }

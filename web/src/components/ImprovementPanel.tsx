@@ -3,7 +3,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from "../api";
 import type { DomainAdapter, MetricSpec, Scope } from "../domains/types";
 import type { Constraint, HarnessInfo, HistoryRow, Memory, Proposal, ProposalBatch, ProposalOutcome, Ranking, RankTier, SavedConstraint, SpecEstimate } from "../types";
-import { fmtCost, fmtMetric, fmtSeconds, fmtUsd } from "./MetricsPanel";
+import { fmtCost, fmtMetric, fmtMetricDelta, fmtSeconds, fmtUsd } from "./MetricsPanel";
 import { usePoll } from "./usePoll";
 import { TERMS, tip } from "../terms";
 import Details from "./Details";
@@ -705,7 +705,7 @@ function ProposalCard({
                       <td title={s.tech}>{s.label}</td>
                       <td className="num">{fmtMetric(b, s.format)}</td>
                       <td className="num">{fmtMetric(a, s.format)}</td>
-                      <td className="num">{d === 0 ? "–" : `${d > 0 ? "+" : ""}${s.format === "pct" ? `${(d * 100).toFixed(1)}%p` : `${d.toFixed(1)}분`}`}</td>
+                      <td className="num">{d === 0 ? "–" : fmtMetricDelta(d, s.format)}</td>
                     </tr>
                   );
                 })}
@@ -719,7 +719,7 @@ function ProposalCard({
             </table>
             {Object.entries(sim.slices ?? {}).map(([fid, s]) => (
               <div key={fid} className="small">
-                {fid} 조건의 실패율 {(s.before.fail_rate * 100).toFixed(1)}% → {(s.after.fail_rate * 100).toFixed(1)}% ({s.after.items}건)
+                {fid} 조건의 {s.before.label ?? "실패율"} {(s.before.fail_rate * 100).toFixed(1)}% → {(s.after.fail_rate * 100).toFixed(1)}% ({s.after.items.toLocaleString()}{s.after.unit ?? "건"})
               </div>
             ))}
           </div>

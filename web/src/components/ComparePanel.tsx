@@ -5,7 +5,7 @@ import CompareTable from "./CompareTable";
 import HarnessPipeline from "./HarnessPipeline";
 import HarnessToggle from "./HarnessToggle";
 import MetricsPanel, { fmtCost, fmtMetric } from "./MetricsPanel";
-import { TERMS, tip } from "../terms";
+import { L, TERMS, tip } from "../terms";
 import SidePanel, { SideGroup } from "./SidePanel";
 
 export interface CompareProps {
@@ -56,6 +56,7 @@ export default function ComparePanel(p: CompareProps) {
         reasonDetails={p.reasonDetails}
         selected={p.selectedItem}
         onSelect={p.onSelectItem}
+        runId={run.run_id}
       />
       <MetricsPanel run={run} decisions={decisions} specs={p.adapter.metrics} reasonLabels={p.reasonLabels}
         reasonDetails={p.reasonDetails} />
@@ -147,7 +148,7 @@ export default function ComparePanel(p: CompareProps) {
           ) : (
             <p className="muted empty">
               {p.dataset
-                ? `${TERMS.rule.label}을 실행하면 배정 결과가 표시됩니다.`
+                ? L(`${TERMS.rule.label}을 실행하면 배정 결과가 표시됩니다.`)
                 : `${TERMS.seed.label}와 ${TERMS.faults.label}를 고르고 데이터를 생성하세요.`}
             </p>
           )}

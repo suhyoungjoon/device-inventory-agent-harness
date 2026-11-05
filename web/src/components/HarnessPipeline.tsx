@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../api";
-import { TERMS, levelShortName, tip, type TermKey } from "../terms";
+import { L, TERMS, levelShortName, tip, type TermKey } from "../terms";
 import type { DomainDefinition, HarnessInfo, HarnessLevel } from "../types";
 
 // 하네스 파이프라인 그림 (M7-a). 단계 구조와 설명은 코어 개념이라 도메인과 무관하고,
@@ -119,7 +119,7 @@ export default function HarnessPipeline({
           </span>
         </Stage>
         <Stage {...stageProps("llm")} num="②" {...term("llm")}>
-          <span className="stage-row">지시서당 최대 {maxCalls}회</span>
+          <span className="stage-row">{L("지시서")}당 최대 {maxCalls}회</span>
         </Stage>
         <Stage {...stageProps("submit")} num="③" title="결정 제출">
           <span className="stage-row">정해진 형식으로 <em>항상</em></span>
@@ -147,11 +147,11 @@ export default function HarnessPipeline({
       <div className="stage-detail">
         <dl>
           <dt>하는 일</dt>
-          <dd>{doc.what}</dd>
+          <dd>{L(doc.what)}</dd>
           <dt>설정 위치 (파일)</dt>
           <dd>{doc.config}</dd>
           <dt>결과에서 보이는 곳</dt>
-          <dd>{doc.shows}</dd>
+          <dd>{L(doc.shows)}</dd>
         </dl>
         {stage === "input" && def && def.tools.length > 0 && (
           <div className="tool-list">
