@@ -55,7 +55,7 @@ def termination(entry: dict, specs: list[dict], config: dict, min_effect: float)
     goals = [s for s in specs if s.get("primary") and s.get("target") is not None]
     after = entry.get("after") or {}
     if goals and all(_reached(s, after.get(s["key"])) for s in goals):
-        return True, GOAL + ": " + ", ".join(f"{_label(s)} {_value(s, after[s['key']])} ≥ 목표 {_value(s, s['target'])}"
+        return True, GOAL + ": " + ", ".join(f"{_label(s)} {_value(s, after[s['key']])} {'≤' if _sign(s) < 0 else '≥'} 목표 {_value(s, s['target'])}"
                                             for s in goals)
     gain = round_gain(entry, specs)
     if not entry.get("approved") or gain < min_effect - 1e-9:

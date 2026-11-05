@@ -104,9 +104,10 @@ def test_budget_charges_estimated_cost_and_time():
 
 
 def test_budget_defaults_from_workflow_config():
-    assert load_budget_config() == {"max_usd": 1.5, "max_seconds": 1200}
+    # M21-e: 이 레포는 실제 실행 여유로 1.5 → 5.0달러 (사용자 허용 2026-11-05)
+    assert load_budget_config() == {"max_usd": 5.0, "max_seconds": 1200}
     b = Budget.from_config()
-    assert (b.max_usd, b.max_seconds) == (1.5, 1200)
+    assert (b.max_usd, b.max_seconds) == (5.0, 1200)
 
 
 def test_retry_options_from_llm_config():
