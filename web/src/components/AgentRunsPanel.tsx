@@ -132,7 +132,16 @@ export default function AgentRunsPanel({
   const [sources, setSources] = useState<AgentTabSources | null>(null);
   const [history, setHistory] = useState<AgentTabHistoryRow[]>([]);
   const [graph, setGraph] = useState<AgentsGraph | null>(null);
-  const [current, setCurrent] = useSessionState<{ agent: TabAgent; id: string } | null>("agentTab.current", null);
+  // 에이전트마다 마지막으로 본 실행: 다른 에이전트를 고르면 그 에이전트의 화면(없으면 빈 안내), 돌아오면 보던 실행 그대로
+  const [views, setViews] = useSessionState<Partial<Record<TabAgent, string>>>("agentTab.views", {});
+  const viewId = views[agent];
+  const current = viewId ? { agent, id: viewId } : null;
+  const setCurrent = (c: { agent: TabAgent; id: string } | null) => setViews((v) => {
+    const next = { ...v };
+    if (c) next[c.agent] = c.id;
+    else delete next[agent];
+    return next;
+  });
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
