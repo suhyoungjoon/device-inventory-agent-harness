@@ -66,6 +66,7 @@ Python 3.11+, FastAPI, Pydantic, SQLite, PyYAML, pytest / React + Vite + TypeScr
 pip install -e ".[dev]"          # 설치
 pytest                           # 테스트
 python -m scripts.generate --domain dispatch --seed 42 --faults P1,P2   # 데이터 생성
+python -m scripts.generate --domain inventory --seed 42   # 단말 재고 데이터 생성 (M21, 240건)
 (cd web && npm ci && npm run build)   # 프런트엔드 빌드 (web/dist)
 python -m api.main               # API + 빌드된 프런트엔드 서빙 (http://127.0.0.1:8000)
 (cd web && npm run dev)          # 프런트엔드 개발 서버 (API는 :8000으로 프록시)
