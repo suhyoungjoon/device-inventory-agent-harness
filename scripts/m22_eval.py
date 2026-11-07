@@ -116,13 +116,19 @@ def prepare(runs, args) -> dict:
             break
         if snap["waiting"] == "approval":
             p = ctx.data["proposals"][snap["approval"]["proposal"]]
-            action = "reject" if not decisions else "approve"
-            note = reject_note(args, p["body"]) if action == "reject" else args.approve_note
+            first = next((x for x in decisions if x["action"] == "reject"), None)
+            if first is None:
+                action, note = "reject", reject_note(args, p["body"])
+            elif touches_rejected(p["body"], first["body"]):
+                # 반려 사유와 어긋나는 승인을 막는다: 같은 파라미터·겹치는 구간이면 같은 사유로 반려하고 다음 안으로
+                action, note = "reject", first["note"]
+            else:
+                action, note = "approve", args.approve_note
             decisions.append({"action": action, "title": p["body"].get("title"), "rank": snap["approval"].get("rank"),
                               "change": _proposal_change(p["body"]), "proposal_id": p.get("id"), "body": p["body"],
                               "note": note, "case_id": f"case-{p['id'][-8:]}" if p.get("id") else None})
             snap = _step(runs, snap["id"], action, note)
-            if action == "approve":
+            if action == "approve" or len(decisions) >= args.max_prepare_decisions:
                 break
         else:
             snap = _step(runs, snap["id"])
@@ -232,8 +238,10 @@ def _mean(vals, digits=4):
 def summary_md(results: dict) -> str:
     prep, rows = results["prepare"], results["rows"]
     rej = next(x for x in prep["decisions"] if x["action"] == "reject")
+    more = [x for x in prep["decisions"] if x["action"] == "reject"][1:]
     lines = ["# M22 평가: 과거 사례 검색 끔/켬", "",
              f"- 준비: 반려 `{rej['title']}` ({rej['change']}) → {rej['case_id']}, 사유 \"{rej.get('note') or results['args']['note']}\"",
+             *[f"- 준비: 같은 파라미터라 같은 사유로 반려 `{x['title']}` → {x['case_id']}" for x in more],
              f"- 준비: 승인 " + ", ".join(f"`{x['title']}`" for x in prep["decisions"] if x["action"] == "approve"),
              f"- 저장된 루프 사례: {len(prep['stored_cases'])}건 · 준비 비용 ${prep['cost_usd']} · {prep['seconds']}초", "",
              "| 회 | 사례 | 반려안 재제안 | 같은 파라미터·구간 | 사례 인용 안 | 반려 사례 보고 다른 안 | 규정 위반 안 | 적용 불가 | 1순위 개선폭(%p) | 검색 | 비용($) | 개선 단계($) | 시간(초) |",
@@ -267,6 +275,8 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--note-mode", choices=["fixed", "specific"], default="fixed",
                         help="specific: 반려한 안이 바꾸는 파라미터를 이름으로 막는 사유 (--note 대신)")
     parser.add_argument("--approve-note", default="준비 단계 승인")
+    parser.add_argument("--max-prepare-decisions", type=int, default=6,
+                        help="준비 단계 사람 결정 상한 (반려 사유와 어긋나는 안을 건너뛰다 끝나지 않는 것을 막는다)")
     parser.add_argument("--out", default=None)
     parser.add_argument("--fake", action="store_true", help="가짜 AI (키 없이 흐름만, 비용 0)")
     args = parser.parse_args(argv)
