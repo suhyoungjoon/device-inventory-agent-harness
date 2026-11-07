@@ -39,6 +39,16 @@ ROOT = Path(__file__).resolve().parents[1]
 METRICS = [{"key": "assignment_rate", "label": "배정 성공률", "format": "pct", "primary": True, "better": "up"}]
 
 
+def domain_metrics(domain: str) -> list[dict]:
+    """화면에 보낼 핵심 지표 (도메인 dimensions.yaml의 metrics 중 primary). 없으면 출동 기본값 (M21 재고 레포: --domain inventory)."""
+    from core.registry import load_pack
+
+    specs = (load_pack(domain).dimensions().get("metrics") or {})
+    out = [{"key": k, **{f: v[f] for f in ("label", "format", "better") if f in v}, "primary": True}
+           for k, v in specs.items() if v.get("primary")]
+    return out or METRICS
+
+
 def _runs(out: Path, demo: bool = False):
     from workflow.agents.api import AgentRuns
 
@@ -49,7 +59,7 @@ def _start(runs, args, **kw) -> dict:
     from workflow.agents.api import AgentsStart
 
     req = AgentsStart(domain=args.domain, seed=args.seed, faults=args.faults, items=args.items, level=args.level,
-                      metrics=METRICS, pace=0, llm="fake" if args.fake else "claude", **kw)
+                      metrics=domain_metrics(args.domain), pace=0, llm="fake" if args.fake else "claude", **kw)
     return runs.start(req)
 
 
