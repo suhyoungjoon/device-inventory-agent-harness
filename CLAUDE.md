@@ -79,7 +79,7 @@ node scripts/record_demo.mjs --url http://127.0.0.1:8010 --allow-live --scenes v
 python -m scripts.make_demo_video --take t1 --out 사번_성명_시연영상.mp4   # 후처리: AI 대기 구간만 배속(짧은 대기 --speed, 1분 넘으면 --long-speed 범위) + 제목 카드·태그 범례 → runs/recordings/, 제출 기준(5분·500MB·1080p) 점검 (ffmpeg)
 python -m scripts.m15_eval all --max-usd 3   # M15 로컬 확인 실험: 임베딩·RAG 있이/없이·고정 규칙 vs Supervisor (실제 API, runs/m15_eval)
 python -m scripts.m18_eval all --repeats 3 --max-usd 15   # M18 평가: 고정 흐름 vs 분석·개선 Supervisor, S1~S3 (실제 API, runs/m18_eval, --fake면 비용 0)
-python -m scripts.m22_eval --repeats 5   # M22 평가: LangGraph 루프 과거 사례 검색 끔/켬 (준비 실행에서 1순위 반려·다음 안 승인 → 새 실행 각 5회, 실제 API·LLM_CACHE=0, runs/m22_eval, --fake면 비용 0)
+python -m scripts.m22_eval --repeats 5   # M22 평가: LangGraph 루프 과거 사례 검색 끔/켬 (준비 실행에서 1순위 반려·다음 안 승인 → 새 실행 각 5회, 실제 API·LLM_CACHE=0, runs/m22_eval, --note-mode specific면 반려 파라미터를 이름으로 막는 사유, --mode 2x2면 같은 실행 안 기억×사례, --fake면 비용 0)
 ```
 AI agent 실행에는 API 키가 필요하다: 기본 제공사 azure_openai는 `.env`의 `MY_PROJECT_AZURE_API_KEY`, anthropic은 `OAH_ANTHROPIC_API_KEY`(우선) 또는 `ANTHROPIC_API_KEY`. 모델·effort·캐시는 `configs/llm.yaml`(배정은 기본값, 분석·개선안은 `roles`의 역할별 모델), 최종 측정 때는 `LLM_CACHE=0`으로 입력 해시 캐시를 끈다. 실험할 때만 모델을 바꾸려면 `LLM_MODEL`, `LLM_THINKING`(adaptive | off), `LLM_EFFORT`(low~max | none)로 덮어쓴다 (쓴 모델은 사용량 기록 `usage.model`에 남는다).
 제공사는 `configs/llm.yaml`의 `provider`(기본 azure_openai | anthropic)로 고르고 `LLM_PROVIDER`(환경변수 또는 `.env`)로 덮어쓴다. anthropic은 선택 설치 `pip install -e ".[anthropic]"`. Azure 단가는 정가 추정치(`pricing_estimated`, 화면 "(추정)"), 모델·deployment 대응·모델별 옵션은 `llm.yaml`의 `azure` 섹션 (`core/llm/azure_openai.py`가 Anthropic 형식 ↔ OpenAI 형식 변환, 에이전트 코드는 그대로).
