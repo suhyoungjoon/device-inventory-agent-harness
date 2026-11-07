@@ -209,9 +209,15 @@ def test_m22_eval_fake_runs_end_to_end(tmp_path):
     """평가 스크립트를 가짜 AI로 (비용 0): 준비(반려 → 승인) → 사례 끔/켬 각 1회 → 결과 파일."""
     from scripts.m22_eval import main
 
-    out = main(["--fake", "--repeats", "1", "--out", str(tmp_path / "m22")])
-    assert [x["action"] for x in out["prepare"]["decisions"]] == ["reject", "approve"]
-    assert len(out["prepare"]["stored_cases"]) == 2
+    out = main(["--fake", "--repeats", "1", "--note-mode", "specific", "--out", str(tmp_path / "m22")])
+    rej = out["prepare"]["decisions"][0]
+    assert rej["note"].startswith("matching.area_extension_km는 어느 구간에서도 바꾸지 말 것")
+    assert all(r["touched_rejected"] for r in out["rows"])     # 가짜 AI는 같은 안을 다시 낸다
+    assert len(list((tmp_path / "m22" / "flows").glob("*.json"))) == 3   # 준비 1 + 비교 2 실행 기록
+    # 가짜 AI는 같은 안을 다시 낸다 → 반려 사유와 어긋나는 승인 대신 같은 사유로 반려 (승인 없이 끝날 수 있다)
+    acts = [x["action"] for x in out["prepare"]["decisions"]]
+    assert acts and set(acts) == {"reject"}
+    assert len(out["prepare"]["stored_cases"]) == len(acts)
     assert [r["use_cases"] for r in out["rows"]] == [False, True]
     assert out["rows"][1]["retrieval_options"]["kinds"] == ["case", "opinion", "regulation"]
     assert (tmp_path / "m22" / "summary.md").is_file()
