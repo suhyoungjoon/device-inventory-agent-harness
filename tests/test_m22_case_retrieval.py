@@ -221,3 +221,15 @@ def test_m22_eval_fake_runs_end_to_end(tmp_path):
     assert [r["use_cases"] for r in out["rows"]] == [False, True]
     assert out["rows"][1]["retrieval_options"]["kinds"] == ["case", "opinion", "regulation"]
     assert (tmp_path / "m22" / "summary.md").is_file()
+
+
+def test_m22_eval_2x2_fake(tmp_path):
+    """2×2 모드 (가짜 AI): 조건마다 새 저장소에서 반려 → 모두 반려 → 다시 제안 묶음까지, 실행 기록 저장."""
+    from scripts.m22_eval import main
+
+    out = main(["--fake", "--mode", "2x2", "--note-mode", "specific", "--repeats", "1", "--out", str(tmp_path / "x")])
+    rows = out["rows"]
+    assert [(r["use_memory"], r["use_cases"]) for r in rows] == [(True, True), (True, False), (False, True), (False, False)]
+    assert all(r["reproposed"] and r["decisions"][0]["note"].startswith("matching.area_extension_km") for r in rows)
+    assert len(list((tmp_path / "x").glob("r1-*/flows/*.json"))) == 4
+    assert (tmp_path / "x" / "summary.md").read_text(encoding="utf-8").startswith("# M22 평가 2×2")

@@ -194,11 +194,95 @@ def compare_run(runs, args, use_cases: bool, rejected: dict, pack, params: dict,
                            if "모델 " in x), None)}
 
 
+HOLD_NOTE = "보류 (다른 안과 비교하려고 이번에는 넘김)"
+
+
+def within_run(out: Path, args, use_memory: bool, use_cases: bool) -> dict:
+    """2×2 (기억 × 사례): 새 저장소·색인의 실행 하나. 1회차 첫 안을 구체적 사유로 반려하고, 남은 안은 보류(같은 파라미터면
+    같은 사유로 반려)해 모두 반려 → 다시 제안을 받는다. 다시 제안 묶음에 반려한 파라미터·구간이 다시 나오는지 본다.
+    같은 실행 안의 판단이 들어오는 길은 기억(use_memory)과 방금 남긴 사례(use_cases) 두 가지다."""
+    started = time.time()
+    runs = _runs(out)                      # 실행마다 새 저장소·색인 (다른 실행의 사례가 섞이지 않게)
+    snap = _start(runs, args, use_cases=use_cases, use_memory=use_memory)
+    ctx = runs.runs.flows[snap["id"]]["_ctx"]
+    first, decisions = None, []
+    for _ in range(80):
+        if snap["status"] == "done" or sum(s["node"] == "proposal_agent" for s in snap["steps"]) >= 2:
+            break
+        if snap["waiting"] == "approval":
+            body = ctx.data["proposals"][snap["approval"]["proposal"]]["body"]
+            if first is None:
+                first, note = body, reject_note(args, body)
+            else:
+                note = reject_note(args, first) if touches_rejected(body, first) else HOLD_NOTE
+            decisions.append({"title": body.get("title"), "change": _proposal_change(body), "note": note})
+            snap = _step(runs, snap["id"], "reject", note)
+        else:
+            snap = _step(runs, snap["id"])
+    batches = [s for s in snap["steps"] if s["node"] == "proposal_agent"]
+    again = (ctx.data.get("proposals") or []) if len(batches) >= 2 else []
+    rows = [{"title": p["body"].get("title"), "status": p["status"], "change": _proposal_change(p["body"]),
+             "touches_rejected": touches_rejected(p["body"], first or {}),
+             "cited": [str(c) for c in p["body"].get("cited_docs") or []] if isinstance(p["body"].get("cited_docs"), list) else []}
+            for p in again if isinstance(p.get("body"), dict)]
+    runs.save(snap["id"])
+    last = batches[-1] if batches else {}
+    return {"flow_id": snap["id"], "use_memory": use_memory, "use_cases": use_cases, "rejected": first and _proposal_change(first),
+            "decisions": decisions, "reproposed": len(batches) >= 2, "proposals": rows,
+            "touched_rejected": any(r["touches_rejected"] for r in rows),
+            "cites_case": sum(any(c.startswith("case-") for c in r["cited"]) for r in rows),
+            "search_line": next((x for x in last.get("lines") or [] if x.startswith("검색: ")), None),
+            "proposal_lines": last.get("lines") or [],
+            "cost_usd": _cost(snap["steps"]), "seconds": round(time.time() - started, 1)}
+
+
+def run_2x2(args, out: Path) -> dict:
+    results = {"args": dict(vars(args)), "mode": "2x2", "started": time.time(), "out": str(out), "rows": []}
+    conds = [(m, c) for m in (True, False) for c in (True, False)]
+    with workspace(args.domain):
+        for i in range(args.repeats):
+            for use_memory, use_cases in conds:
+                row = within_run(out / f"r{i + 1}-m{int(use_memory)}c{int(use_cases)}", args, use_memory, use_cases)
+                row["repeat"] = i + 1
+                results["rows"].append(row)
+                print(f"  {i + 1}회 기억 {'켬' if use_memory else '끔'} · 사례 {'켬' if use_cases else '끔'}: "
+                      f"다시 제안 {row['reproposed']} · 같은 파라미터·구간 {row['touched_rejected']} · 사례 인용 {row['cites_case']} · "
+                      f"${row['cost_usd']} · {row['seconds']}초", flush=True)
+                (out / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1, default=str),
+                                                  encoding="utf-8")
+    results["finished"] = time.time()
+    (out / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    (out / "summary.md").write_text(summary_2x2(results), encoding="utf-8")
+    return results
+
+
+def summary_2x2(results: dict) -> str:
+    rows = results["rows"]
+    lines = ["# M22 평가 2×2: 같은 실행 안 기억 × 사례 검색 (모두 반려 → 다시 제안 묶음)", "",
+             "| 회 | 기억 | 사례 | 반려한 안 | 다시 제안 | 같은 파라미터·구간 | 사례 인용 안 | 검색 | 비용($) | 시간(초) |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    on = lambda b: "켬" if b else "끔"   # noqa: E731
+    for r in rows:
+        lines.append(f"| {r['repeat']} | {on(r['use_memory'])} | {on(r['use_cases'])} | {r['rejected']} | "
+                     f"{'예' if r['reproposed'] else '아니오'} | {'예' if r['touched_rejected'] else '아니오'} | {r['cites_case']} | "
+                     f"{(r['search_line'] or '-').removeprefix('검색: ')} | {r['cost_usd']} | {r['seconds']} |")
+    lines += ["", "| 기억 | 사례 | 같은 파라미터·구간 실행 | 사례 인용 실행 | 비용 평균($) | 시간 평균(초) |", "|---|---|---|---|---|---|"]
+    for m in (True, False):
+        for c in (True, False):
+            sub = [r for r in rows if r["use_memory"] == m and r["use_cases"] == c and r["reproposed"]]
+            lines.append(f"| {on(m)} | {on(c)} | {sum(r['touched_rejected'] for r in sub)}/{len(sub)} | "
+                         f"{sum(r['cites_case'] > 0 for r in sub)}/{len(sub)} | {_mean([r['cost_usd'] for r in sub])} | "
+                         f"{_mean([r['seconds'] for r in sub], 1)} |")
+    return "\n".join(lines) + "\n"
+
+
 def run(args) -> dict:
     if not args.fake:
         os.environ["LLM_CACHE"] = "0"       # 최종 측정: 입력 해시 캐시를 끈다 (같은 입력도 새로 부른다)
     out = Path(args.out or ROOT / "runs" / "m22_eval" / time.strftime("%Y%m%d-%H%M%S"))
     out.mkdir(parents=True, exist_ok=True)
+    if args.mode == "2x2":
+        return run_2x2(args, out)
     results = {"args": {k: v for k, v in vars(args).items()}, "started": time.time(), "out": str(out)}
     with workspace(args.domain):
         runs = _runs(out)
@@ -278,11 +362,13 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--max-prepare-decisions", type=int, default=6,
                         help="준비 단계 사람 결정 상한 (반려 사유와 어긋나는 안을 건너뛰다 끝나지 않는 것을 막는다)")
     parser.add_argument("--out", default=None)
+    parser.add_argument("--mode", choices=["compare", "2x2"], default="compare",
+                        help="compare: 이전 실행 사례 끔/켬 (기본) · 2x2: 같은 실행 안 기억 × 사례, 모두 반려 → 다시 제안 묶음")
     parser.add_argument("--fake", action="store_true", help="가짜 AI (키 없이 흐름만, 비용 0)")
     args = parser.parse_args(argv)
     args.faults = [f for f in args.faults.split(",") if f]
     results = run(args)
-    print(summary_md(results))
+    print(summary_2x2(results) if args.mode == "2x2" else summary_md(results))
     print(f"결과: {results['out']}")
     return results
 
