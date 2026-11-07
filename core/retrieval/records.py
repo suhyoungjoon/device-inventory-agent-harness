@@ -19,7 +19,8 @@ def case_chunk(proposal: dict, findings: list[dict], primary: list[str], params_
     targets = [f for f in findings if f.get("id") in (body.get("target_findings") or [])]
     before, after = sim.get("before") or {}, sim.get("after") or {}
     effect = ", ".join(f"{k} {before[k]:.4g}→{after[k]:.4g}" for k in primary if k in before and k in after)
-    word = "승인" if proposal.get("status") == "approved" else "반려"
+    word = ("승인" if proposal.get("status") == "approved"
+            else "의견" if dec.get("action") == "opinion" else "반려")   # 의견: 회차 루프에서 의견을 남겨 다시 제안받은 안 (M22)
     text = (f"발견: {'; '.join(f.get('title', '') for f in targets) or '-'}. "
             f"개선안: {body.get('title', '')} ({body.get('rationale', '')}). "
             f"미리 돌려보기: {effect or '-'}. 결정: {word}" + (f" — {dec['note']}" if dec.get("note") else "") + ".")

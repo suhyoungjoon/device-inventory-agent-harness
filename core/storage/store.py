@@ -117,6 +117,15 @@ CREATE TABLE IF NOT EXISTS opinion_runs (  -- 의견 정리 에이전트 단독 
     created_at REAL NOT NULL,
     finished_at REAL
 );
+CREATE TABLE IF NOT EXISTS loop_cases (  -- 회차 루프(LangGraph agents)에서 사람이 결정한 개선안 (M22). 다음 실행의 과거 사례 검색 재료
+    id TEXT PRIMARY KEY,           -- 개선안 id (사례 조각 id는 case-<끝 8자>)
+    domain TEXT NOT NULL,
+    flow_id TEXT,                  -- 결정을 내린 루프 실행
+    status TEXT NOT NULL,          -- approved | rejected (의견도 rejected, decision.action = opinion)
+    body TEXT NOT NULL,            -- {body: 개선안, simulation: {before, after} 핵심 지표만, decision: {action, note, at},
+                                   --  findings: 대상 발견 요약, params_version}. 정답표·가상 실적은 넣지 않는다
+    created_at REAL NOT NULL
+);
 """
 
 # M3에서 runs에 추가한 열 (기존 DB는 ALTER TABLE로 보강)
@@ -521,3 +530,17 @@ class Store:
             ids = [r["id"] for r in self.conn.execute(
                 "SELECT id FROM opinion_runs ORDER BY created_at DESC LIMIT ?", (limit,))]
         return [self.get_opinion_run(i) for i in ids]
+
+    # --- 회차 루프의 사람 결정 → 과거 사례 (M22) ---
+    def save_loop_case(self, case_id: str, domain: str, status: str, body: dict, flow_id: str | None = None) -> None:
+        """같은 개선안을 다시 결정하면(같은 id) 마지막 결정으로 덮어쓴다."""
+        with self.lock, self.conn:
+            self.conn.execute("INSERT OR REPLACE INTO loop_cases VALUES (?, ?, ?, ?, ?, ?)",
+                              (case_id, domain, flow_id, status, json.dumps(to_jsonable(body), ensure_ascii=False),
+                               time.time()))
+
+    def loop_cases(self, domain: str) -> list[dict]:
+        with self.lock:
+            rows = self.conn.execute("SELECT * FROM loop_cases WHERE domain = ? ORDER BY created_at",
+                                     (domain,)).fetchall()
+        return [{**dict(r), "body": json.loads(r["body"])} for r in rows]
