@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentEvent, WorkflowStep } from "../types";
+import type { AgentEvent, StepRetrieval, WorkflowStep } from "../types";
 
 // LangGraph agents 상위 타임라인 (M20): 워크플로우 노드 방문 하나 = 한 줄, 회차로 묶는다.
 // 에이전트 안의 턴 단위 진행은 아래 "에이전트 내부"·진행 기록에 있다 (여기는 한 단계 위).
@@ -22,6 +22,32 @@ function duration(s?: number | null) {
   if (s < 10) return `${s.toFixed(1)}초`;
   if (s < 60) return `${Math.round(s)}초`;
   return `${Math.floor(s / 60)}분 ${Math.round(s % 60)}초`;
+}
+
+// 문서 검색 (M22): "검색: 규정 n · 사례 n · 의견 n", 받은 사례를 펼쳐 보기 (인용한 사례는 ✓)
+const KIND_WORDS: [string, string][] = [["regulation", "규정"], ["case", "사례"], ["opinion", "의견"]];
+
+function SearchRow({ r }: { r: StepRetrieval }) {
+  const text = KIND_WORDS.map(([k, w]) => `${w} ${r.counts[k] ?? 0}`).join(" · ");
+  const cited = r.cited.filter((c) => c.startsWith("case-")).length;
+  return (
+    <li className="agt-sub agt-search">
+      ↳ 검색: {text} · 인용 {r.cited.length}건{cited ? ` (사례 ${cited}건)` : ""}
+      {r.cases.length > 0 && (
+        <details className="agt-cases">
+          <summary>받은 사례 {r.cases.length}건 펼쳐 보기</summary>
+          <ul>
+            {r.cases.map((c) => (
+              <li key={c.ref}>
+                <code>{c.ref}</code> {c.cited ? <strong>✓ 인용</strong> : <span className="muted">인용 안 함</span>} {c.title}
+                <div className="muted">{c.text}</div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
+  );
 }
 
 const LIVE_LINES = 12;   // 진행 중인 단계 아래에 보일 내부 진행 줄 수 (그보다 많으면 앞쪽은 "… N줄 더")
@@ -82,6 +108,7 @@ export default function AgentsTimeline({ steps, running, runningKind, label, pic
     for (const [j, a] of (s.sub ?? []).entries()) {
       rows.push(<li key={`${i}-${j}`} className="agt-sub" onClick={() => onPick(s.node)}>↳ <code>{a.tool}</code> {a.summary}</li>);
     }
+    if (s.retrieval) rows.push(<SearchRow key={`${i}-search`} r={s.retrieval} />);
   });
   if (running) {
     const kind = KIND[runningKind ?? "rule"];

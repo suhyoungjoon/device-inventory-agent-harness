@@ -728,3 +728,10 @@ abbr.term { text-decoration: underline dotted; text-underline-offset: 3px; curso
 @keyframes agt-new { from { background: color-mix(in srgb, var(--series-1) 18%, transparent); } to { background: transparent; } }
 .agt-row.agt-running { background: color-mix(in srgb, var(--series-1) 6%, transparent); }
 @media (max-width: 760px) { .agt-sub.agt-live { padding-left: 24px; } }
+
+/* M22: 개선 단계의 문서 검색 줄 (규정·사례·의견 수, 받은 사례 펼쳐 보기) */
+.agt-sub.agt-search { cursor: default; }
+.agt-cases summary { cursor: pointer; color: var(--text-secondary); }
+.agt-cases ul { margin: 4px 0 4px 0; padding-left: 16px; white-space: normal; }
+.agt-cases li { margin: 2px 0; }
+.agt-cases code { font-size: 11px; }
