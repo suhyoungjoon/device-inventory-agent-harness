@@ -54,6 +54,14 @@ CITED_DOCS = {"type": "array", "items": {"type": "string"},
               "description": "근거로 인용한 search_knowledge 결과의 ref (규정 조항·과거 사례·현장 의견)"}
 RETRIEVAL_NOTE = ("\n\n# 문서 검색\nsearch_knowledge로 운영 규정·과거 사례·현장 의견을 찾을 수 있다. 규정과 맞지 않는 안은 내지 말고, "
                   "근거로 쓴 문서는 각 안의 cited_docs에 ref로 적어라. 인용하지 않은 문서는 근거가 아니다.")
+# 과거 사례(case)를 검색할 수 있을 때만 붙인다 (M22). 없으면 입력이 이전과 같다
+CASE_NOTE = ("\n과거 사례에서 이전에 반려된 개선안과 그 사유를 먼저 찾아라. 반려된 안과 같은 변경(같은 파라미터·같은 방향·"
+             "같은 구간 조건)은 다시 내지 말고, 사유를 반영한 다른 안을 내라. 근거로 쓴 사례도 cited_docs에 적어라.")
+
+
+def retrieval_note(kinds) -> str:
+    """문서 검색 안내. kinds: 이 에이전트가 검색할 수 있는 문서 종류."""
+    return RETRIEVAL_NOTE + (CASE_NOTE if "case" in (kinds or ()) else "")
 
 
 def _submit_tool(cited_docs: bool = False) -> dict:
@@ -144,7 +152,7 @@ def propose(pack_factory, instance, params: dict, spec_text: str, dimensions: di
                    "어길 수밖에 없으면 rationale에 어떤 제약을 왜 어기는지 적어라.")
     if retrieval:
         tools.append(search_tool(retrieval["index"], retrieval["kinds"], record=retrieval.setdefault("record", {})))
-        user += RETRIEVAL_NOTE
+        user += retrieval_note(retrieval["kinds"])
     user += memory_text
     if feedback:
         user += ("\n\n# 이전 시도에서 탈락한 이유\n" + "\n".join(f"- {f}" for f in feedback)

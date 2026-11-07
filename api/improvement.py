@@ -20,6 +20,7 @@ from core.evaluation.fault_scorer import apply_labels, score
 from core.evaluation.runner import create_ai_run, run_ai_agent
 from core.harness.levels import load_levels
 from core.improvement.approval import write_params, write_spec
+from core.improvement.cases import case_records as load_case_records
 from core.improvement.changes import apply_params, apply_spec, params_errors
 from core.improvement.history import change_card, change_record
 from core.improvement.constraints import constraint_errors, constraint_violations
@@ -35,7 +36,6 @@ from core.llm.embeddings import make_embedder
 from core.llm.events import LiveLog
 from core.registry import knowledge_dir, load_pack, load_params, load_perspectives
 from core.retrieval import open_index, prepare, retrieval_meta, search_tool
-from core.retrieval.records import case_chunk
 from core.storage.store import Store
 
 from .replay import equivalent_run_ids
@@ -184,17 +184,8 @@ def register(app: FastAPI, ctx: Context) -> None:
 
     # --- 문서 검색 (M15-C) ---
     def case_records(domain: str, pack) -> list:
-        """결정된 개선안 → 과거 회차 사례 조각 (DB 기록에서 매번 다시 맞춘다. 해시가 같으면 쓰지 않는다)."""
-        primary = [m["key"] for m in _metric_specs(pack.dimensions()) if m.get("primary")]
-        out = []
-        for p in store.decided_proposals():
-            report = store.get_report(p["report_id"])
-            run = store.get_run(report["run_id"]) if report else None
-            if not run or run["domain"] != domain:
-                continue
-            meta = (store.get_batch(p["batch_id"]) or {}).get("meta") or {}
-            out.append(case_chunk(p, (report.get("body") or {}).get("findings") or [], primary, meta.get("params_version")))
-        return out
+        """과거 사례 조각: 개선 탭 결정 + 회차 루프 결정 (core.improvement.cases, M22에서 루프와 같이 쓰게 옮김)."""
+        return load_case_records(store, domain, [m["key"] for m in _metric_specs(pack.dimensions()) if m.get("primary")])
 
     def knowledge(domain: str, kinds: list[str]) -> dict | None:
         """검색 도구에 넘길 묶음. 색인 파일이나 도메인 문서 선언이 없으면 None."""

@@ -14,6 +14,7 @@ LangGraph 노드와 연결이다. 도구·검사·검증·시뮬레이션·승�
 import json
 import operator
 import time
+import uuid
 from pathlib import Path
 from typing import Annotated, TypedDict
 
@@ -28,6 +29,7 @@ from core.evaluation.fault_scorer import score
 from core.harness.levels import Level
 from core.improvement import proposer as proposer_core
 from core.improvement.approval import write_params, write_spec
+from core.improvement.cases import case_records, loop_case
 from core.improvement.changes import apply_params, apply_spec, params_errors, spec_errors, spec_sections
 from core.improvement.constraints import constraint_errors, constraint_violations
 from core.improvement.loop import NEXT_STEPS, allowed_steps, load_loop_config, loop_report, termination
@@ -39,8 +41,8 @@ from core.improvement.supervisor import END_REASONS, judgment_tool
 from core.improvement.supervisor import supervise as run_supervisor
 from core.params import params_view
 from core.registry import knowledge_dir, load_pack, load_params, load_perspectives
-from core.retrieval import prepare as prepare_retrieval, retrieval_meta, search_tool
-from core.retrieval.records import opinion_chunk
+from core.retrieval import prepare as prepare_retrieval, retrieval_meta, retrieval_summary, search_tool
+from core.retrieval.records import case_chunk, opinion_chunk
 from core.retrieval.tool import citation_errors
 
 from ..graph import (APPROVED, IMPROVED, NO_MORE, NOT_IMPROVED, REJECTED, HAS_PROPOSALS, _better, _fmt,
@@ -121,8 +123,8 @@ def _charge(d: dict, cost) -> None:
         d["step_cost"] = (d.get("step_cost") or 0.0) + cost
 
 
-# 단계 기록에서 맨 위로 올리는 값 (M20 타임라인): 사람 검토의 결정, Supervisor의 시도 기록 요약
-TIMELINE_KEYS = ("decision", "sub")
+# 단계 기록에서 맨 위로 올리는 값 (M20 타임라인): 사람 검토의 결정, Supervisor의 시도 기록 요약, 문서 검색 요약
+TIMELINE_KEYS = ("decision", "sub", "retrieval")   # retrieval: 그 단계의 문서 검색 요약 (M22)
 
 
 def _timed(d: dict, fn, kind: str):
@@ -169,6 +171,40 @@ def _constraint_text(c: dict) -> str:
 
 def _step(node: str, lines: list[str], **data) -> dict:
     return {"log": [{"node": node, "lines": lines, "data": data, "at": time.time()}]}
+
+
+KIND_WORDS = (("regulation", "규정"), ("case", "사례"), ("opinion", "의견"))
+
+
+def _search_line(summary: dict, kinds) -> str:
+    """"검색: 규정 n · 사례 n · 의견 n" (이 단계에서 받은 조각 수, 검색할 수 있는 종류만) + 인용 수 (M22)."""
+    counts = summary["counts"]
+    parts = [f"{w} {counts.get(k, 0)}" for k, w in KIND_WORDS if k in kinds]
+    parts += [f"{k} {n}" for k, n in counts.items() if k not in dict(KIND_WORDS)]
+    cases = sum(1 for c in summary["cited"] if c.startswith("case-"))
+    return ("검색: " + " · ".join(parts) + f" · 인용 {len(summary['cited'])}건"
+            + (f" (사례 {cases}건)" if cases else ""))
+
+
+def _step_retrieval(d: dict):
+    """이 단계에서 받은 조각만 따로 모으는 검색 묶음 (record만 새것, 색인·종류는 같다). 끝나면 _merge_retrieval."""
+    base = d.get("retrieval")
+    return {**base, "record": {}} if base else None
+
+
+def _merge_retrieval(d: dict, step: dict | None, cited: list[str]) -> dict | None:
+    """단계 record를 실행 record에 합치고 재현 메타데이터(loop.retrieval)를 갱신한다. 단계 요약을 돌려준다."""
+    if not step:
+        return None
+    d["retrieval"]["record"].update(step["record"])
+    d["cited_docs"] = sorted(set(d.get("cited_docs") or []) | set(cited))
+    d["retrieval_meta"] = retrieval_meta(d["retrieval"]["index"], d["retrieval"]["record"], d["cited_docs"])
+    return retrieval_summary(step["index"], step["record"], cited)
+
+
+def _cited(bodies) -> list[str]:
+    return [str(c) for b in bodies if isinstance(b, dict) and isinstance(b.get("cited_docs"), list)
+            for c in b["cited_docs"]]
 
 
 def _line(state: AgentsState, name: str, violations: int, metrics: dict) -> str:
@@ -266,7 +302,8 @@ def analysis_fanout_graph(ctx: AgentContext, perspectives: list[dict], make_llm=
     return g.compile()
 
 
-def proposal_agent_graph(ctx: AgentContext, llm=None):
+def proposal_agent_graph(ctx: AgentContext, llm=None, retrieval: dict | None = None):
+    """retrieval: 검색 묶음 (없으면 실행의 것. 단계별 요약을 위해 record만 새것을 넘길 수 있다, M22)."""
     d = ctx.data
     pack, params, report = d.get("pack"), d.get("params") or {}, d.get("report") or {}
     spec_text = Path(pack.spec_path()).read_text(encoding="utf-8") if pack else ""
@@ -296,8 +333,8 @@ def proposal_agent_graph(ctx: AgentContext, llm=None):
                                                           "override_rules": proposer_core._RULES}}},
     ]
 
-    retrieval = d.get("retrieval")
-    if retrieval:   # 문서 검색 (M15-C): 규정·현장 의견. 인용은 cited_docs, 받지 않은 조각 인용은 적용 불가
+    retrieval = retrieval or d.get("retrieval")
+    if retrieval:   # 문서 검색 (M15-C, M22): 규정·과거 사례·현장 의견. 인용은 cited_docs, 받지 않은 조각 인용은 적용 불가
         tools.append(search_tool(retrieval["index"], retrieval["kinds"], record=retrieval["record"]))
 
     def check(submission: dict, calls: dict) -> list[str]:
@@ -474,6 +511,13 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
     def specs() -> list[dict]:
         return metric_specs(d["pack"].dimensions())
 
+    def primary_keys(pack=None) -> list[str]:
+        return [m["key"] for m in metric_specs((pack or d["pack"]).dimensions()) if m.get("primary")]
+
+    def memory_text() -> str:
+        """이 실행에서 반려·의견을 받은 안 (기억). use_memory=false면 넣지 않는다 (화면의 반려 기록은 그대로, M22)."""
+        return proposal_memory_text({"rejections": d["rejections"]}) if d.get("use_memory", True) else ""
+
     def start_round(n: int) -> None:
         d.update(round_no=n, round_started=time.time(), round_cost=None, round_decisions=[], round_approved=[],
                  reproposals=0, proposed_in_round=False, round_before=None, round_after=None,
@@ -490,8 +534,13 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
         d.update(pack=pack, params=params, instance=instance, truth=truth, scope=scope, sub_instance=sub, rule_sub=rule,
                  constraints=[], rejections=[], rounds=[])
         loaded = load_saved_constraints(pack, params, instance)
-        if d.get("index") is not None:   # 문서 검색 (M15-C): 규정 + 이전 실행의 현장 의견
-            d["retrieval"] = prepare_retrieval(d["index"], knowledge_dir(pack), pack.name, ["regulation", "opinion"])
+        if d.get("index") is not None:   # 문서 검색 (M15-C): 규정 + 이전 실행의 현장 의견 + 과거 사례 (M22)
+            kinds, records = ["regulation", "opinion"], None
+            if d.get("use_cases", True):
+                kinds.append("case")
+                store = d.get("store")
+                records = {"case": case_records(store, pack.name, primary_keys(pack)) if store is not None else []}
+            d["retrieval"] = prepare_retrieval(d["index"], knowledge_dir(pack), pack.name, kinds, records)
         start_round(1)
         v = len(pack.validate(sub, rule))
         lines = [f"전체 {len(pack.items(instance))}건 중 처리 순서 앞 {len(scope)}건",
@@ -589,11 +638,12 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
             user += ("\n\n" + CONSTRAINTS_HEADER + "\n" + json.dumps(d["constraints"], ensure_ascii=False, indent=1)
                      + "\nsimulate_params 결과의 constraint_violations가 비도록 안을 설계하라. "
                        "어길 수밖에 없으면 rationale에 어떤 제약을 왜 어기는지 적어라.")
-        user += proposal_memory_text({"rejections": d["rejections"]})   # 이 실행에서 반려·의견을 받은 안 (기억)
+        user += memory_text()   # 이 실행에서 반려·의견을 받은 안 (기억)
         if d.get("retrieval"):
-            user += proposer_core.RETRIEVAL_NOTE
+            user += proposer_core.retrieval_note(d["retrieval"]["kinds"])
         llm = ctx.make_llm("proposals")
-        out = run_tool_agent(proposal_agent_graph(ctx, llm), user)
+        step_retrieval = _step_retrieval(d)
+        out = run_tool_agent(proposal_agent_graph(ctx, llm, step_retrieval), user)
         _charge(d, out["usage"].cost_usd(llm.model, ctx.llm_config))
         spec_text = Path(d["pack"].spec_path()).read_text(encoding="utf-8")
         proposals = []
@@ -603,34 +653,36 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
                 continue
             errors = (params_errors(d["params"], p, dims) if p.get("kind") == "params"
                       else spec_errors(spec_text, p) if p.get("kind") == "spec" else ["알 수 없는 kind"])
-            proposals.append({"body": p, "errors": errors, "status": "invalid" if errors else "proposed"})
+            errors += citation_errors(p.get("cited_docs"), out.get("calls") or {})   # 받지 않은 조각 인용은 적용 불가 (M22)
+            proposals.append({"id": uuid.uuid4().hex, "body": p, "errors": errors, "status": "invalid" if errors else "proposed"})
         d["proposals"], d["ranking"] = proposals, None
-        if d.get("retrieval"):
-            cited = [str(c) for p in proposals if isinstance(p["body"].get("cited_docs"), list) for c in p["body"]["cited_docs"]]
-            d["cited_docs"] = sorted(set(d.get("cited_docs") or []) | set(cited))
-            d["retrieval_meta"] = retrieval_meta(d["retrieval"]["index"], d["retrieval"]["record"], d["cited_docs"])
+        searched = _merge_retrieval(d, step_retrieval, _cited(p["body"] for p in proposals))
         usable = [i for i, p in enumerate(proposals) if not p["errors"]]
         usable.sort(key=lambda i: proposals[i]["body"].get("kind") != "params")
         head = f"{state.get('round', 1)}회차" + (f" · 다시 제안 {d['reproposals']}번째" if d["reproposals"] else "")
         lines = [f"{head} · 제안 {len(proposals)}건 · 미리 돌려볼 제안 {len(usable)}건"
                  + (f" · 적용 불가 {len(proposals) - len(usable)}건" if len(proposals) > len(usable) else "")]
         if d["constraints"] or d["rejections"]:
-            lines.append(f"입력에 넣은 것: 제약 {len(d['constraints'])}개 · 반려·의견 기억 {len(d['rejections'])}건")
+            lines.append(f"입력에 넣은 것: 제약 {len(d['constraints'])}개 · 반려·의견 기억 "
+                         + (f"{len(d['rejections'])}건" if d.get("use_memory", True) else "끔"))
         lines += [proposals[i]["body"].get("title", "") for i in usable]
         lines += [f"✕ {p['body'].get('title', '')}: {p['errors'][0]}" for p in proposals if p["errors"]]
         lines += _failure_lines(out.get("failure"))       # 반복·도구 실패·예산 초과로 멈췄으면 그 사유 (제안이 0건일 때 이유)
+        if searched is not None:
+            lines.append(_search_line(searched, d["retrieval"]["kinds"]))
         lines.append(f"AI 호출 {out.get('llm_calls', 0)}회 · 모델 {llm.model}" + _cache_note(out["usage"]))
-        return {"queue": usable, **_step("proposal_agent", lines)}
+        return {"queue": usable, **_step("proposal_agent", lines, **({"retrieval": searched} if searched else {}))}
 
     def previous_text() -> str:
         """다음 회차 Supervisor 입력: 지난 회차의 판단 보고서 요약, 사람의 판단, 재평가 결과 (M18-c)."""
         rows = []
+        remember = d.get("use_memory", True)     # 기억을 끄면 사람의 반려·의견을 넣지 않는다 (M22 실험)
         for entry, j in zip(d["rounds"], d.get("judgments") or []):
             rows.append({"round": entry["round"], "judgment_summary": (j or {}).get("summary"),
                          "recommended": [r.get("proposal_id") for r in (j or {}).get("recommendations") or []],
-                         "human_decisions": entry["decisions"], "approved": entry["approved"],
+                         "human_decisions": entry["decisions"] if remember else None, "approved": entry["approved"],
                          "before": entry["before"], "after": entry["after"]})
-        rejected = [x for x in d.get("round_decisions") or [] if x["action"] != "approve"]
+        rejected = [x for x in d.get("round_decisions") or [] if x["action"] != "approve"] if remember else []
         if rejected:      # 같은 회차에서 다시 부를 때: 방금 사람이 반려·의견을 남긴 안
             rows.append({"round": d.get("round_no"), "this_round_rejected_or_opinion": rejected})
         if not rows:
@@ -648,8 +700,8 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
         out = run_supervisor(pack, lambda q: load_pack(pack.name, q), d["instance"], d["full_rule"], params, spec_text,
                         lambda role: ctx.make_llm(role), ctx.llm_config, perspectives=load_perspectives(pack),
                         constraints=d["constraints"] or None,
-                        proposal_memory=proposal_memory_text({"rejections": d["rejections"]}),
-                        previous=previous_text(), retrieval=d.get("retrieval"),
+                        proposal_memory=memory_text(),
+                        previous=previous_text(), retrieval=(step_retrieval := _step_retrieval(d)),
                         salt=f"lg-supervisor:{state.get('round', 1)}:{d['reproposals']}",
                         on_event=_supervisor_event(ctx))
         costs = [u.get("cost_usd") for u in [out["usage"], *out["sub_usage"]] if u]
@@ -674,12 +726,14 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
                 body = {"title": f"Supervisor 직접 변경 {pid}", "kind": "params", **sim["change"]}
             simulation = {**sim["result"], "constraint_violations": sim["constraint_violations"],
                           "minimal_change": sim["minimal_change"], "diagnosis": sim["diagnosis"]}
-            proposals.append({"body": body, "errors": [], "status": "simulated", "simulation": simulation,
+            proposals.append({"id": uuid.uuid4().hex, "body": body, "errors": [], "status": "simulated", "simulation": simulation,
                               "supervisor_id": pid, "recommendation": rec,
                               "rank": {"rank": i + 1, "tier": "main",
                                        "reasons": [f"Supervisor 추천 (확신도 {rec.get('confidence')})",
                                                    f"기대 효과: {rec.get('expected_effect')}", f"잃는 것: {rec.get('loses')}"]}})
         d["proposals"], d["ranking"] = proposals, {"supervisor": True}
+        searched = _merge_retrieval(d, step_retrieval, _cited(
+            [p.get("proposal") for p in out["proposals"].values()] + [judgment]))
         s = score(findings, d["truth"].get("faults", {}), calls)
         c = out["counts"]
         lines = [f"{state.get('round', 1)}회차" + (f" · 다시 제안 {d['reproposals']}번째" if d["reproposals"] else "")
@@ -692,6 +746,8 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
             lines += [f"{p['rank']['rank']}. {p['body'].get('title', '')} (확신도 {p['recommendation'].get('confidence')})"
                       for p in proposals]
             lines += [f"사람에게 묻는 것: {q}" for q in judgment.get("questions_for_human") or []]
+        if searched is not None:
+            lines.append(_search_line(searched, d["retrieval"]["kinds"]))
         total = sum(x for x in costs if x is not None)
         cached = sum(int((u or {}).get("cached_calls") or 0) for u in [out["usage"], *out["sub_usage"]])
         calls = sum(int((u or {}).get("calls") or 0) for u in [out["usage"], *out["sub_usage"]])
@@ -705,7 +761,8 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
         return {"queue": list(range(len(proposals))), **_step("supervisor_agent", lines, detected=s["detected"],
                                                               total=s["total"],
                                                               sub=[{"tool": a["tool"], "summary": a["result"]}
-                                                                   for a in out["attempts_log"]])}
+                                                                   for a in out["attempts_log"]],
+                                                              **({"retrieval": searched} if searched else {}))}
 
     def rank_all() -> tuple[list[int], list[str]]:
         """설정값 제안을 모두 규칙 엔진으로 돌려보고 제시 기준(M15-A)으로 순위를 매긴다. (검토 순서, 화면 줄)"""
@@ -821,10 +878,28 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
             d["rejections"].append({"title": title, "change": _proposal_change(p["body"]),
                                     "reason": ("의견: " if action == "opinion" else "") + (note or "사유 없음")})
         p["status"] = "approved" if action == "approve" else "rejected"
+        record_case(p, action, note)
         word = {"approve": "승인", "reject": "반려", "opinion": "의견"}[action]
         return {"decision": action, "opinion_error": "",
                 **_step("human_review", [word + (f": {note}" if note else ""), title],
                         decision={"action": action, "title": title, "note": note})}
+
+    def record_case(p: dict, action: str, note: str) -> None:
+        """사람의 결정을 과거 사례로 남긴다 (M22): 저장소(loop_cases) + 사례를 검색하는 실행이면 색인에도 바로.
+        시연 모드(record_cases=false)에서는 쓰지 않는다. 정답표·가상 실적은 넣지 않는다."""
+        store = d.get("store")
+        if store is None or not d.get("record_cases", True) or not p.get("id"):
+            return
+        pack = d["pack"]
+        body = loop_case(p["body"], p.get("simulation"), action, note, (d.get("report") or {}).get("findings") or [],
+                         primary_keys(), d["params"].get("version"), time.time())
+        status = "approved" if action == "approve" else "rejected"
+        store.save_loop_case(p["id"], pack.name, status, body, d.get("flow_id"))
+        if d.get("retrieval") and "case" in d["retrieval"]["kinds"]:
+            d["retrieval"]["index"].add(f"{pack.name}:case", [case_chunk(
+                {"id": p["id"], "status": status, "body": body["body"], "simulation": body["simulation"],
+                 "decision": body["decision"]}, body["findings"], primary_keys(), body["params_version"])])
+        d.setdefault("cases_written", []).append(f"case-{p['id'][-8:]}")
 
     def opinion_agent(state: AgentsState):
         p = d["proposals"][state["proposal"]]

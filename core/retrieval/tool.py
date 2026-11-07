@@ -54,6 +54,19 @@ def returned_refs(calls: dict, name: str = SEARCH) -> set[str]:
             for h in (c.get("output") or {}).get("hits") or []}
 
 
+def retrieval_summary(index: Index, record: dict, cited=None) -> dict:
+    """한 단계에서 받은 검색 조각 요약 (M22 화면): 종류별 개수, 인용한 ref, 받은 사례 조각(펼쳐 보기용).
+    record: 그 단계의 search_tool record (조각 id → 해시)."""
+    got = [c for c in index.chunks() if c.id in record]
+    counts: dict[str, int] = {}
+    for c in got:
+        counts[c.kind] = counts.get(c.kind, 0) + 1
+    cited = sorted({str(x) for x in cited or []})
+    return {"counts": counts, "cited": cited,
+            "cases": [{"ref": c.id, "title": c.title, "text": c.text, "cited": c.id in cited}
+                      for c in got if c.kind == "case"]}
+
+
 def citation_errors(cited, calls: dict, where: str = "", name: str = SEARCH) -> list[str]:
     """cited_docs 검사: 검색 결과로 받은 ref만 인용할 수 있다."""
     if cited in (None, []):

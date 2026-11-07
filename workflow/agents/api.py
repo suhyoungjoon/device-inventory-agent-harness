@@ -37,6 +37,8 @@ class AgentsStart(BaseModel):
     perspectives: bool = False     # 분석 에이전트를 관점별로 나눠 병렬 실행 (M12-b)
     pace: float = Field(default=0.2, ge=0, le=2)     # 내부 단계 사이 간격 (초)
     use_knowledge: bool = True    # 개선 제안·의견 정리 에이전트에 문서 검색 도구 (M15-C). RAG 비교 실험은 false
+    use_cases: bool = True        # 문서 검색에 과거 사례(이전 실행·개선 탭의 승인·반려)를 포함 (M22). use_knowledge가 false면 함께 꺼짐
+    use_memory: bool = True       # 같은 실행 안의 반려·의견을 개선 제안 입력에 넣는다 (M22 실험용, 꺼도 화면 기록은 남는다)
     end_check: Literal["fixed", "supervisor"] | None = None   # 종료 판정 (M15-D). 없으면 configs/workflow.yaml
     use_saved_constraints: bool = True   # 이전에 확정해 저장한 제약을 불러와 처음부터 쓴다 (M15 후속)
     mode: Literal["fixed", "supervisor"] = "fixed"   # M18: supervisor면 분석·개선 구간을 Supervisor가 지휘 (기본 꺼짐)
@@ -108,6 +110,9 @@ class AgentRuns:
         kind = "fake" if self.demo else req.llm
         if self.store is not None:
             ctx.data.update(store=self.store, use_saved_constraints=req.use_saved_constraints)
+        # M22: 과거 사례 검색·기억 켜고 끄기. 시연 모드는 사람의 결정을 사례로 쓰지 않는다 (저장된 결과 재생)
+        ctx.data.update(use_cases=req.use_knowledge and req.use_cases, use_memory=req.use_memory,
+                        record_cases=not self.demo)
         if self.retrieval_path is not None and req.use_knowledge:
             from core.llm.embeddings import make_embedder
             from core.retrieval import open_index
@@ -127,9 +132,11 @@ class AgentRuns:
                 raise HTTPException(503, f"LLM 클라이언트를 만들 수 없음: {exc}")
             ctx.make_llm = lambda role=None: clients[role]
         graph = build_flow(ctx, levels, end_check=req.end_check, mode=req.mode)
-        inputs = req.model_dump(exclude={"llm", "pace", "use_knowledge", "end_check", "use_saved_constraints", "mode"})
+        inputs = req.model_dump(exclude={"llm", "pace", "use_knowledge", "end_check", "use_saved_constraints", "mode",
+                                          "use_cases", "use_memory"})
         flow_id = self.runs.start(graph, {**inputs, "log": []}, llm=kind, end_check=req.end_check, mode=req.mode,
                                   _ctx=ctx)
+        ctx.data["flow_id"] = flow_id          # 사례 기록에 남긴다 (어느 실행에서 내린 결정인지)
         return self.snapshot(flow_id)
 
     def snapshot(self, flow_id: str, after: int = -1) -> dict:
@@ -143,6 +150,10 @@ class AgentRuns:
         loop = {"round": values.get("round"), "rounds": d.get("rounds") or [], "constraints": d.get("constraints") or [],
                 "stop_reason": values.get("stop_reason"), "report": d.get("final_report"),
                 "decisions": d.get("round_decisions") or [], "retrieval": d.get("retrieval_meta"),
+                # M22: 검색한 종류·기억 사용 여부(재현 조건), 이 실행이 남긴 사례 id
+                "retrieval_options": {"kinds": sorted((d.get("retrieval") or {}).get("kinds") or []),
+                                      "use_memory": d.get("use_memory", True)},
+                "cases_written": d.get("cases_written") or [],
                 "pending_constraints": d.get("pending_constraints") or [],
                 "saved_loaded": d.get("saved_loaded") or [], "saved_skipped": d.get("saved_skipped") or [],
                 "judgment": d.get("judgment")}    # M18 Supervisor 판단 보고서 (마지막 호출)

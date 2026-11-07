@@ -8,7 +8,7 @@
 from .documents import load_knowledge, parse_markdown
 from .index import Chunk, Index
 from .session import open_index, prepare
-from .tool import citation_errors, retrieval_meta, search_tool
+from .tool import citation_errors, retrieval_meta, retrieval_summary, search_tool
 
 __all__ = ["Chunk", "Index", "citation_errors", "load_knowledge", "parse_markdown", "open_index", "prepare", "retrieval_meta",
-           "search_tool"]
+           "retrieval_summary", "search_tool"]

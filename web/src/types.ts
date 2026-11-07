@@ -494,6 +494,13 @@ export interface WorkflowStep {
   cost_usd?: number;
   decision?: { action: "approve" | "reject" | "opinion"; title: string; note?: string };
   sub?: { tool: string; summary: string }[];
+  retrieval?: StepRetrieval;   // M22: 그 단계의 문서 검색 (종류별로 받은 조각 수, 인용, 받은 사례)
+}
+
+export interface StepRetrieval {
+  counts: Record<string, number>;
+  cited: string[];
+  cases: { ref: string; title: string; text: string; cited: boolean }[];
 }
 
 export interface WorkflowRun {
