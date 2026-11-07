@@ -748,3 +748,10 @@ abbr.term { text-decoration: underline dotted; text-underline-offset: 3px; curso
 .inv-plan-table tr.constrained td { background: rgba(250, 178, 25, 0.12); }
 .inv-plan-table td.evidence { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
 .inv-plan-table .bad { color: var(--critical); }
+
+/* M22: 개선 단계의 문서 검색 줄 (규정·사례·의견 수, 받은 사례 펼쳐 보기) */
+.agt-sub.agt-search { cursor: default; }
+.agt-cases summary { cursor: pointer; color: var(--text-secondary); }
+.agt-cases ul { margin: 4px 0 4px 0; padding-left: 16px; white-space: normal; }
+.agt-cases li { margin: 2px 0; }
+.agt-cases code { font-size: 11px; }

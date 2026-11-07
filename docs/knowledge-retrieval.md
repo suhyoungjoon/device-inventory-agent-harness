@@ -1,4 +1,6 @@
-# 문서 검색(RAG)과 온톨로지 (M15-C)
+# 운영 지식 RAG와 온톨로지 (M15-C, M22)
+
+이름: 처음에는 "규정 RAG"라고 불렀지만 검색하는 것이 세 가지(규정·과거 사례·현장 의견)라서 **운영 지식 RAG**로 부른다.
 
 숫자는 지금처럼 **집계 도구**가 맡는다 (근거 검사 그대로). 검색은 **문장으로 된 지식**(규정·과거 사례·현장 의견)을 맡고,
 에이전트가 필요할 때 부르는 **도구**(`search_knowledge`)로 붙인다. 문맥에 미리 넣지 않는다.
@@ -11,7 +13,8 @@
 | `core/retrieval/text.py` | 토큰화(한글은 두 글자 조각도), BM25 |
 | `core/retrieval/documents.py` | 도메인 문서(`knowledge/*.md`) → 조항 하나 = 조각 하나. 선언 밖 필드·분야, 가상 표시 없음은 오류 |
 | `core/retrieval/records.py` | 기록 → 조각: 과거 회차 사례(결정된 개선안), 현장 의견 |
-| `core/retrieval/tool.py` | 도구 정의(`search_knowledge`), 인용 검사(`citation_errors`), 재현 메타데이터(`retrieval_meta`) |
+| `core/retrieval/tool.py` | 도구 정의(`search_knowledge`), 인용 검사(`citation_errors`), 재현 메타데이터(`retrieval_meta`), 단계별 검색 요약(`retrieval_summary`, M22 화면) |
+| `core/improvement/cases.py` | 과거 사례 조각을 모으는 공용 함수 (M22): 개선 탭 결정(DB 개선안) + 회차 루프 결정(`loop_cases`). 개선 탭과 루프가 같이 쓴다 |
 | `core/retrieval/session.py` | 실행 하나의 준비: 문서·기록을 색인에 맞추고(해시가 같으면 다시 쓰지 않음) 도구 묶음을 만든다 |
 | `core/llm/embeddings.py` | 임베딩 클라이언트. `configs/llm.yaml`의 `embedding` (auto: LLM 제공사가 azure_openai면 Azure `text-embedding-3-small`, 아니면 none) |
 | `domains/dispatch/knowledge/` | 가상 운영 규정 4분야(출동 반경·관할, 자격·인증, 근무시간·가능시간, 안전) × 5조항 + 선언(`index.yaml`: 종류·필드·분야) |
@@ -26,10 +29,19 @@
 | 종류 (`kind`) | 만드는 곳 | 쓰는 에이전트 |
 |---|---|---|
 | `regulation` 가상 운영 규정 | `domains/dispatch/knowledge/*.md` (커밋된 문서) | 개선 제안(개선 탭·agents 탭), 의견 정리(agents 탭) |
-| `case` 과거 회차 사례 | DB의 승인·반려된 개선안 (발견 → 개선안 → 미리 돌려보기 → 결정·사유). 요청마다 다시 맞춘다 | 분석(개선 탭, 사례가 있을 때만), 개선 제안(개선 탭) |
+| `case` 과거 회차 사례 | 사람이 결정한 개선안 (발견 → 개선안 → 미리 돌려보기 → 결정·사유). 개선 탭의 승인·반려(DB 개선안)와 **LangGraph 회차 루프의 승인·반려·의견**(`loop_cases`, M22). 요청·실행마다 두 곳을 함께 다시 맞춘다 | 분석(개선 탭, 사례가 있을 때만), 개선 제안(개선 탭, **agents 탭 회차 루프 고정 흐름·Supervisor**, M22) |
 | `opinion` 현장 의견 | agents 탭에서 의견 정리 에이전트가 제약으로 정리한 의견 (원문 + 제약) | 개선 제안·의견 정리(agents 탭, 다음 실행부터) |
 
 분석 에이전트에는 사례가 하나도 없으면 도구를 붙이지 않는다 (입력·캐시 키가 이전과 같다). 관점별 분석에는 아직 붙이지 않는다.
+
+### 2.1 LangGraph 회차 루프의 과거 사례 (M22)
+
+- **검색:** 데이터 준비 단계가 규정·의견에 더해 `case`도 색인에 맞추고, 개선 제안 에이전트(고정 흐름)와 Supervisor가 부르는 개선 에이전트·Supervisor 자신의 `search_knowledge`에 사례 종류가 붙는다. 사례를 검색할 수 있을 때만 개선 에이전트 입력에 한 줄이 더 붙는다: 반려된 안과 그 사유를 먼저 찾고 같은 변경(같은 파라미터·같은 방향·같은 구간 조건)을 다시 내지 말 것 (`core/improvement/proposer.py`의 `CASE_NOTE`).
+- **기록:** 사람 검토에서 승인·반려·의견을 받으면 그 개선안을 `loop_cases`에 남기고(시연 모드 제외), 사례를 검색하는 실행이면 색인에도 바로 넣는다 (같은 실행의 다음 회차도 찾을 수 있다). 사례 id는 `case-<개선안 id 끝 8자>`. 남기는 것은 개선안 본문(바꾼 파라미터), 미리 돌려본 **핵심 지표 전·후만**, 결정·사유, 대상 발견 요약(id·제목·구간)과 규칙 버전이다. 정답표·가상 실적은 넣지 않는다.
+- **저장 방식:** DB 개선안(`proposals`)을 재사용하지 않고 별도 테이블 `loop_cases`를 두었다. 개선안 행은 실행 → 리포트 → 개선안 묶음 행이 있어야 하는데 루프는 그것을 만들지 않고, 억지로 넣으면 개선 탭 이력·규칙 변경 이력·기억(`collect_memory`)에 루프 결정이 섞이기 때문이다. 대신 사례 조각을 만드는 함수(`core/improvement/cases.py`)가 두 곳을 늘 함께 모은다 (한쪽만 맞추면 색인 동기화가 다른 쪽 사례를 지운다).
+- **켜고 끄기:** `POST /agents/runs`의 `use_cases`(기본 true, `use_knowledge`가 false면 함께 꺼짐), `use_memory`(기본 true: 같은 실행 안의 반려·의견을 개선 입력에 넣는 기억. 꺼도 화면의 반려 기록은 남는다).
+- **화면:** agents 탭 타임라인의 개선 단계(개선 제안 에이전트·Supervisor 지휘) 밑에 "검색: 규정 n · 사례 n · 의견 n · 인용 n건" 줄과 받은 사례 펼쳐 보기(인용한 사례 ✓).
+- **효과 (2026-11-07, 회사 Azure, 각 5회):** 이전 실행에서 반려한 안과 같은 변경의 재제안 끔 1/5 → 켬 0/5, 켬은 5/5 실행이 사례를 인용. 승인 사례가 기준점이 되어 1순위 개선폭은 작아졌다 (+5.43 → +2.61%p). 자세히는 `docs/experiment-real-api-2026-10.md` 6.17.
 
 ## 3. 인용과 검사
 
@@ -44,10 +56,10 @@
 |---|---|
 | 개선안 묶음 `meta.retrieval` | `mode`(keyword·hybrid), `embedding_model`, 돌려준 조각 `[{id, hash}]`, 인용한 id |
 | 분석 리포트 `body.retrieval` | 같은 형식 (사례 검색을 붙였을 때만) |
-| agents 탭 `loop.retrieval` | 같은 형식 (실행 하나 동안 누적) |
+| agents 탭 `loop.retrieval` | 같은 형식 (실행 하나 동안 누적). M22: `loop.retrieval_options`(검색한 종류, 기억 사용 여부), `loop.cases_written`(이 실행이 남긴 사례 id), 단계 기록의 `retrieval`(그 단계에서 받은 종류별 조각 수·인용·사례) |
 
 조각 해시는 종류·제목·본문·메타데이터로 만든다. 문서를 고치면 해시가 바뀌어 그 조각만 다시 임베딩한다.
-비교 실험(RAG 있이/없이)은 `use_knowledge: false` (`POST /analysis`, `POST /proposals`, `POST /agents/runs`).
+비교 실험(RAG 있이/없이)은 `use_knowledge: false` (`POST /analysis`, `POST /proposals`, `POST /agents/runs`). 사례 검색만 끄는 실험은 `use_cases: false` (`POST /agents/runs`, `scripts/m22_eval.py`).
 
 ## 5. 가상 규정 문서 쓰는 법
 
