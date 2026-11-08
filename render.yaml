@@ -1,0 +1,19 @@
+# Render Blueprint: 백엔드(FastAPI). 화면은 Vercel(web/vercel.json)이 이 서비스로 API 요청을 넘긴다.
+# 처음에는 시연 모드(DEMO_BUNDLE). 실제 AI로 바꾸는 법은 docs/deploy.md.
+services:
+  - type: web
+    name: inventory-harness-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -e ".[workflow]"
+    startCommand: sh scripts/render_start.sh
+    healthCheckPath: /domains
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DEMO_BUNDLE          # 지우면 실제 AI 모드 (그때 아래 키를 Render 대시보드에서 비밀값으로 넣는다)
+        value: demo/bundle
+      - key: EMBEDDING_PROVIDER   # 시연 모드는 임베딩을 부르지 않는다 (키워드 검색만)
+        value: none
+      - key: MY_PROJECT_AZURE_API_KEY
+        sync: false               # 값은 대시보드에서만. 시연 모드에서는 비워 둔다

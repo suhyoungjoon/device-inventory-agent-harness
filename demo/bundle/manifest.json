@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-11-08 09:03:39",
+  "git_ref": "HEAD",
+  "git_commit": "4f5362b20dbd98ecab293efa24b1289b1db2ecd0",
+  "note": "재고 레포 호스팅용 시연 번들: 단말 재고 시범 10건 L0·L3·L5 실제 AI, LangGraph 실제 AI 실행 기록 1건 (2026-11-05)",
+  "counts": {
+    "datasets": 2,
+    "rule_runs": 13,
+    "ai_runs": 4,
+    "reports": 0,
+    "proposals": 0,
+    "agents_flows": 1
+  },
+  "domain_file_sources": {
+    "dispatch/params.yaml": "git:HEAD",
+    "dispatch/domain-spec.md": "git:HEAD",
+    "dispatch/faults.yaml": "working tree",
+    "dispatch/dimensions.yaml": "working tree",
+    "dispatch/analysis_perspectives.yaml": "working tree",
+    "inventory/params.yaml": "git:HEAD",
+    "inventory/domain-spec.md": "git:HEAD",
+    "inventory/faults.yaml": "working tree",
+    "inventory/dimensions.yaml": "working tree",
+    "inventory/analysis_perspectives.yaml": "working tree"
+  }
+}
