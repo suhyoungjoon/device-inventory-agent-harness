@@ -70,9 +70,12 @@ async function caption(page, text, tag = null, still = true) {
     if (!el) {
       el = document.createElement("div");
       el.id = "rec-caption";
-      el.style.cssText = "position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;"
-        + "max-width:86%;padding:12px 22px;border-radius:10px;background:rgba(20,20,19,.92);color:#fff;"
-        + `font:600 ${px}px/1.45 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.25);pointer-events:none`;
+      // 화면 맨 아래 가로 띠: 한 줄에 들어가 가리는 높이가 작고, 반투명 + 블러라 뒤 화면이 이어져 보인다
+      el.style.cssText = "position:fixed;left:0;right:0;bottom:0;width:100%;z-index:9999;"
+        + "padding:14px 24px;text-align:center;background:rgba(20,20,19,.78);backdrop-filter:blur(5px);"
+        + "border-top:3px solid #2a78d6;color:#fff;"
+        + `font:600 ${px}px/1.4 system-ui,sans-serif;pointer-events:none`;
+      document.body.style.paddingBottom = "96px";   // 아래쪽 내용이 띠에 묻히지 않게
       document.body.appendChild(el);
     }
     el.textContent = "";
