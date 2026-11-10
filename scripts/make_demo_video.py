@@ -166,6 +166,21 @@ def title_card(dst: Path, font: str, live: bool, when: str, seconds: float = 5.0
                     "-r", str(FPS), "-an", str(dst)], check=True)
 
 
+def end_card(dst: Path, font: str, text: str, seconds: float = 9.0) -> None:
+    """마지막 성과 요약 (정지 화면). 줄은 |로 나누고 첫 줄이 제목이다. 수치는 녹화에서 읽은 값을 그대로 적는다."""
+    parts = [x.strip() for x in text.split("|") if x.strip()]
+    title, body = parts[0], parts[1:]
+    gap, head = 62, 96                       # 줄 간격, 제목과 첫 줄 사이
+    top = -(head + max(0, len(body) - 1) * gap) // 2   # 제목부터 마지막 줄까지를 화면 가운데에
+    draw = [f"drawtext=fontfile='{font}':text='{esc(title)}':fontsize=56:fontcolor=white:expansion=none"
+            f":x=(w-tw)/2:y=(h-th)/2+{top}"]
+    draw += [f"drawtext=fontfile='{font}':text='{esc(line)}':fontsize=32:fontcolor=white:expansion=none"
+             f":x=(w-tw)/2:y=(h-th)/2+{top + head + i * gap}" for i, line in enumerate(body)]
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"color=c=0x141413:s={W}x{H}:d={seconds}:r={FPS}",
+                    "-vf", f"{','.join(draw)},format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "22",
+                    "-r", str(FPS), "-an", str(dst)], check=True)
+
+
 def check_submission(out: Path, report: dict) -> list[str]:
     """제출 기준 점검. 문제 목록 (비면 통과)."""
     info = probe(out)
@@ -198,6 +213,8 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--scene-long-speed", action="append", default=[], help="장면별 긴 대기 배율 범위 (예: v4=20-20)")
     ap.add_argument("--work", default=None, help="중간 파일·결과를 쓸 폴더 (없으면 --dir). 다른 레포 녹화 폴더를 건드리지 않을 때")
     ap.add_argument("--title", default=TITLE)
+    ap.add_argument("--end-card", default=None, help="마지막 성과 요약 카드 (줄은 |로 나누고 첫 줄이 제목). 없으면 넣지 않는다")
+    ap.add_argument("--end-seconds", type=float, default=9.0)
     ap.add_argument("--scene-caption", action="append", default=[],
                     help="장면 자막 바꾸기 (예: v6=새 문장). 녹화된 자막 상자를 덮고 새 문장을 쓴다 (장면 전체, 그 장면 자막이 하나일 때)")
     args = ap.parse_args(argv)
@@ -234,6 +251,12 @@ def main(argv: list[str] | None = None) -> None:
         r = report[sid]
         speeds = ", ".join(f"{sp['end'] - sp['start']:.0f}초×1/{sp['speed']:g}" for sp in r["fast_spans"]) or "배속 없음"
         print(f"장면 {sid}: {r['source_seconds']}초 → {r['output_seconds']}초 ({speeds})")
+    if args.end_card:
+        tail = parts / "99-end.mp4"
+        end_card(tail, font, args.end_card, args.end_seconds)
+        clips.append(tail)
+        report["성과 요약"] = {"source_seconds": args.end_seconds, "sped_seconds": 0,
+                            "output_seconds": args.end_seconds, "stretch": 1.0, "fast_spans": []}
     listing = parts / "list.txt"
     listing.write_text("".join(f"file '{c.resolve()}'\n" for c in clips), encoding="utf-8")
     out = work / args.out
