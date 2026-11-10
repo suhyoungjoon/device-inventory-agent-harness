@@ -6,6 +6,7 @@ import { josa } from "../../components/opinionHelp";
 
 export const dispatchAdapter: DomainAdapter = {
   ResultView: DispatchMap,
+  title: "출동 배정",
   data: {
     tables: [
       { key: "branches", label: "지점", idField: "id" },

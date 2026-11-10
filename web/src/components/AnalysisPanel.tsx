@@ -109,7 +109,7 @@ export default function AnalysisPanel({
           </select>
         </label>
       </SideGroup>
-      <SideGroup title="선택">
+      <SideGroup title="분석 설정">
         <label title="실패 패턴·자원 활용·시간 수급처럼 관점마다 AI를 따로(동시에) 돌린 뒤 합칩니다. 같은 발견에 대한 관점별 해석은 나란히 보여 줍니다. 비용은 관점 수만큼 늘어납니다">
           <input type="checkbox" checked={byPerspective} onChange={(e) => setByPerspective(e.target.checked)} disabled={!!busy} />{" "}
           관점별로 분석

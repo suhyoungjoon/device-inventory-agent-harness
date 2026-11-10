@@ -86,7 +86,7 @@ export default function WorkflowPanel({
   if (graph && !graph.available) {
     return (
       <section className="panel">
-        <h2>Agent workflow (Langgraph version)</h2>
+        <h2>Agent workflow (LangGraph)</h2>
         <p className="warning-text">이 화면은 LangGraph가 필요합니다: {graph.reason}</p>
         <p className="muted small">다른 탭은 그대로 쓸 수 있습니다.</p>
       </section>
@@ -108,7 +108,7 @@ export default function WorkflowPanel({
   return (
     <section className="workflow">
       <SidePanel>
-      <SideGroup title="데이터 (기본값)">
+      <SideGroup title="데이터">
         <label title={tip("seed")}>
           {TERMS.seed.label} <input type="number" value={form.seed} onChange={(e) => setForm({ ...form, seed: Number(e.target.value) })} />
         </label>
@@ -127,7 +127,7 @@ export default function WorkflowPanel({
             onChange={(e) => setForm({ ...form, items: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} />
         </label>
       </SideGroup>
-      <SideGroup title="선택">
+      <SideGroup title="실행 설정">
         <label title="AI 방식 실행에 쓸 하네스 레벨">
           하네스 레벨{" "}
           <select value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>

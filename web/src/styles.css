@@ -755,3 +755,63 @@ abbr.term { text-decoration: underline dotted; text-underline-offset: 3px; curso
 .agt-cases ul { margin: 4px 0 4px 0; padding-left: 16px; white-space: normal; }
 .agt-cases li { margin: 2px 0; }
 .agt-cases code { font-size: 11px; }
+
+/* --- UI 다듬기 (2026-11): 왼쪽은 메뉴와 설정, 오른쪽은 지금 화면과 데이터가 한눈에 구분되게 --- */
+:root { --side-bg: #f1f0ec; --accent-wash: rgba(42, 120, 214, 0.1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --side-bg: #141413; --accent-wash: rgba(57, 135, 229, 0.18); } }
+:root[data-theme="dark"] { --side-bg: #141413; --accent-wash: rgba(57, 135, 229, 0.18); }
+
+.app { padding-top: 0; }
+header.app-bar { align-items: center; padding: 10px 4px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+header.app-bar h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.domain-pick { display: inline-flex; align-items: center; gap: 6px; }
+.domain-pick select { font-weight: 600; padding: 4px 8px; }
+
+.app-layout { grid-template-columns: 264px minmax(0, 1fr); gap: 20px; }
+.app-side { background: var(--side-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; gap: 14px; }
+.tabs.tabs-vertical { border-right: none; padding-right: 0; gap: 10px; }
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group-title, .side-settings-title { font-size: 13px; font-weight: 700; color: var(--text-primary); padding: 2px 8px 4px; }
+.nav-group + .nav-group { border-top: 1px solid var(--border); padding-top: 10px; }
+.nav-group button { margin-left: 6px; }
+.tabs.tabs-vertical button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 14px; border-left: none;
+  border-radius: 8px; color: var(--text-secondary); }
+.tabs.tabs-vertical button:hover:not([aria-selected="true"]):not(:disabled) { background: var(--hover-wash); }
+.tabs.tabs-vertical button[aria-selected="true"] { background: var(--accent-wash); color: var(--series-1); font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--series-1); }
+.nav-step { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0;
+  border-radius: 50%; border: 1px solid var(--axis); font-size: 11px; font-weight: 700; color: var(--text-secondary); background: var(--surface); }
+.tabs.tabs-vertical button[aria-selected="true"] .nav-step, .page-title .nav-step { border-color: var(--series-1); background: var(--series-1); color: #fff; }
+
+.side-settings { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+.side-settings:has(.side-slot:empty) { display: none; }
+.side-group { border: none; border-radius: 8px; background: var(--surface); padding: 10px; box-shadow: 0 0 0 1px var(--border); }
+.side-group h3 { font-size: 12px; color: var(--text-primary); margin-bottom: 8px; }
+
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  padding: 2px 2px 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.page-title h2 { display: flex; align-items: center; gap: 8px; font-size: 20px; margin: 0 0 2px; letter-spacing: -0.01em; }
+.page-title p { margin: 0; font-size: 13px; }
+.page-context { display: flex; gap: 8px; margin: 0; flex-wrap: wrap; }
+.page-context > div { display: flex; flex-direction: column; padding: 5px 12px; border-radius: 8px; background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border); min-width: 84px; }
+.page-context dt { font-size: 11px; color: var(--text-muted); }
+.page-context dd { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 탭 안쪽: 실행 줄(도구 막대), 패널 제목, 표 머리글 */
+.run-bar, .wf-bar { background: var(--surface); box-shadow: 0 0 0 1px var(--border); border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; }
+.run-bar > button { padding: 6px 14px; font-weight: 600; }
+.run-bar > button + button { position: relative; margin-left: 14px; }
+.run-bar > button + button::before { content: "→"; position: absolute; left: -19px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); font-weight: 400; pointer-events: none; }
+.run-bar .status-line { justify-content: flex-end; font-size: 12px; }
+.wf-bar { border-left: 3px solid var(--series-1); }
+main .panel { border-radius: 12px; }
+main .panel > h2, main .panel-head h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+main .panel > h2 { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+main .panel-head { padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.panel.side-rule { border-top: 3px solid var(--axis); }
+.panel.side-ai { border-top: 3px solid var(--series-1); }
+main table thead th { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.tile { background: var(--page); border-radius: 10px; }
+.empty { padding: 56px 0; font-size: 13px; }

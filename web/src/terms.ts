@@ -23,7 +23,7 @@ export const TERMS = {
   tabGuide: t("에이전트 소개", "핵심 에이전트(배정·분석·개선·의견 정리·Supervisor), 하네스 레벨, LangGraph 구성 설명 (실행 없음)"),
   tabAgentRuns: t("에이전트", "에이전트 탭 (M16): 배정·분석·개선·의견 정리 에이전트를 하나씩 실행하고 턴 → 도구 → 하네스 검사를 본다"),
   tabAgents: t("LangGraph agents", "LangGraph 에이전트 탭 (M10): 배정·분석·개선 제안 에이전트 내부까지 LangGraph 하위 그래프"),
-  tabWorkflow: t("Agent workflow (Langgraph version)", "LangGraph 워크플로우 탭 (M9): 위 단계를 그래프 하나로 한 단계씩 실행"),
+  tabWorkflow: t("Agent workflow", "LangGraph 워크플로우 탭 (M9): 위 단계를 그래프 하나로 한 단계씩 실행"),
   // 두 방식
   rule: t("규칙 방식", "규칙 agent (기준선)"),
   ai: t("AI 방식", "AI agent"),
@@ -133,6 +133,14 @@ export function L(text: string | undefined): string | undefined {
     .replace(/배정 에이전트/g, t.agent)
     .replace(/미배정/g, t.unassigned)
     .replace(/재배정/g, `다시 ${t.decide}`)
+    .replace(/지시서(를|가|는)(?![가-힣])/g, (_m, j: string) => t.item + josaFor(t.item, j))
     .replace(/지시서/g, t.item)
     .replace(/배정/g, t.decide);
+}
+
+// 바꾼 낱말의 받침에 맞춘 조사 (지시서를 → 발주 항목을)
+function josaFor(word: string, josa: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const hasFinal = code >= 0 && code <= 11171 && code % 28 !== 0;
+  return ({ 를: hasFinal ? "을" : "를", 가: hasFinal ? "이" : "가", 는: hasFinal ? "은" : "는" } as Record<string, string>)[josa] ?? josa;
 }
