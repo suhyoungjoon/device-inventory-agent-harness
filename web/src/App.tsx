@@ -9,7 +9,7 @@ import ImprovementPanel from "./components/ImprovementPanel";
 import TracePanel from "./components/TracePanel";
 import { adapters } from "./domains";
 import type { Scope } from "./domains/types";
-import { CORE_REASON_NAMES, setDomainTerms, TERMS, tip, type TermKey } from "./terms";
+import { CORE_REASON_NAMES, L, setDomainTerms, TERMS, tip, type TermKey } from "./terms";
 import type { CompareSummary, Dataset, DecisionRecord, DemoCatalogEntry, DomainInfo, HarnessInfo, Run, WorkflowRun } from "./types";
 
 // LangGraph 탭 두 개는 탭을 열 때 불러온다 (그래프 라이브러리 React Flow가 커서 첫 화면을 가볍게)
@@ -19,17 +19,19 @@ const AgentRunsPanel = lazy(() => import("./components/AgentRunsPanel"));
 const AgentGuidePanel = lazy(() => import("./components/AgentGuidePanel"));
 
 type Tab = "domain" | "compare" | "trace" | "analysis" | "improve" | "guide" | "agentRuns" | "workflow" | "agents";
-const TABS: { id: Tab; term: TermKey; milestone?: string }[] = [
-  { id: "domain", term: "tabDomain" },
-  { id: "compare", term: "tabCompare" },
-  { id: "trace", term: "tabTrace" },
-  { id: "analysis", term: "tabAnalysis" },
-  { id: "improve", term: "tabImprove" },
-  { id: "guide", term: "tabGuide" },
-  { id: "agentRuns", term: "tabAgentRuns" },
-  { id: "workflow", term: "tabWorkflow" },
-  { id: "agents", term: "tabAgents" },
+// 왼쪽 메뉴: 묶음(group)으로 나누고, 단계별 실행은 순서 번호(step)를 붙인다. desc는 오른쪽 화면 머리글의 한 줄 설명
+const TABS: { id: Tab; term: TermKey; group: string; step?: number; desc: string; milestone?: string }[] = [
+  { id: "domain", term: "tabDomain", group: "준비", desc: "규칙 엔진이 쓰는 규칙·설정값과 가상 데이터를 확인합니다." },
+  { id: "compare", term: "tabCompare", group: "단계별 실행", step: 1, desc: "같은 데이터를 규칙 방식과 AI 방식으로 풀어 나란히 비교합니다." },
+  { id: "trace", term: "tabTrace", group: "단계별 실행", step: 2, desc: "AI가 한 건을 결정한 과정(응답 · 조회 · 검사 · 다시 시도)을 단계별로 봅니다." },
+  { id: "analysis", term: "tabAnalysis", group: "단계별 실행", step: 3, desc: "분석 에이전트가 실행 결과에서 반복되는 문제를 찾습니다." },
+  { id: "improve", term: "tabImprove", group: "단계별 실행", step: 4, desc: "개선 에이전트가 규칙 설정값 개선안을 내고, 미리 돌려본 뒤 사람이 승인합니다." },
+  { id: "guide", term: "tabGuide", group: "에이전트", desc: "에이전트와 하네스 구성을 설명합니다 (실행 없음)." },
+  { id: "agentRuns", term: "tabAgentRuns", group: "에이전트", desc: "에이전트를 하나씩 실행하고 턴 · 도구 · 하네스 검사를 봅니다." },
+  { id: "workflow", term: "tabWorkflow", group: "에이전트", desc: "단계별 실행을 그래프 하나로 이어 한 단계씩 실행합니다." },
+  { id: "agents", term: "tabAgents", group: "에이전트", desc: "배정 → 분석 → 개선 → 사람 승인 → 반영까지 전체 흐름을 LangGraph로 실행합니다." },
 ];
+const TAB_GROUPS = [...new Set(TABS.map((t) => t.group))];
 
 const sameScope = (a: string[] | null | undefined, b: string[] | null) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -233,16 +235,19 @@ export default function App() {
   return (
     <ExpandAllContext.Provider value={expandAll}>
     <div className="app">
-      <header>
+      <header className="app-bar">
         <h1>Optimization Agent Harness</h1>
         {domains.length > 1 ? (
-          <select value={domainName} onChange={(e) => setDomainName(e.target.value)}>
-            {domains.map((d) => (
-              <option key={d.name}>{d.name}</option>
-            ))}
-          </select>
+          <label className="domain-pick" title={tip("domain")}>
+            <span className="muted small">업무</span>
+            <select value={domainName} onChange={(e) => setDomainName(e.target.value)}>
+              {domains.map((d) => (
+                <option key={d.name} value={d.name}>{adapters[d.name]?.title ?? d.name}</option>
+              ))}
+            </select>
+          </label>
         ) : (
-          domainName && <span className="muted" title={tip("domain")}>{TERMS.domain.label}: {domainName}</span>
+          domainName && <span className="muted" title={tip("domain")}>{TERMS.domain.label}: {adapters[domainName]?.title ?? domainName}</span>
         )}
         <label className="expand-all small muted" title="모든 상세보기를 펼친 채로 본다 (이 브라우저에 기억)">
           <input type="checkbox" checked={expandAll}
@@ -252,25 +257,50 @@ export default function App() {
       {harness?.demo && <DemoBanner manifest={harness.demo} catalog={demoCatalog} />}
       <div className="app-layout">
       <aside className="app-side">
-      <nav className="tabs tabs-vertical" role="tablist" aria-orientation="vertical">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            disabled={!!t.milestone}
-            title={t.milestone ? `${t.milestone}에서 추가` : tip(t.term)}
-            onClick={() => !t.milestone && setTab(t.id)}
-          >
-            {TERMS[t.term].label}
-            {t.milestone && <span className="badge">{t.milestone}</span>}
-          </button>
+      <nav className="tabs tabs-vertical" role="tablist" aria-orientation="vertical" aria-label="메뉴">
+        {TAB_GROUPS.map((g) => (
+          <div key={g} className="nav-group" role="presentation">
+            <div className="nav-group-title" aria-hidden="true">{g}</div>
+            {TABS.filter((t) => t.group === g).map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
+                disabled={!!t.milestone}
+                title={t.milestone ? `${t.milestone}에서 추가` : tip(t.term)}
+                onClick={() => !t.milestone && setTab(t.id)}
+              >
+                {t.step && <span className="nav-step" aria-hidden="true">{t.step}</span>}
+                <span className="nav-label">{TERMS[t.term].label}</span>
+                {t.milestone && <span className="badge">{t.milestone}</span>}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
-      <div ref={setSideSlot} className="side-slot" />
+      <div className="side-settings">
+        <div className="side-settings-title" aria-hidden="true">이 화면의 설정</div>
+        <div ref={setSideSlot} className="side-slot" />
+      </div>
       </aside>
       <SideSlotContext.Provider value={sideSlot}>
       <main>
+        {(() => {
+          const cur = TABS.find((t) => t.id === tab);
+          return cur && (
+            <div className="page-head">
+              <div className="page-title">
+                <h2>{cur.step && <span className="nav-step" aria-hidden="true">{cur.step}</span>}{TERMS[cur.term].label}</h2>
+                <p className="muted">{L(cur.desc)}</p>
+              </div>
+              <dl className="page-context" aria-label="지금 보는 데이터">
+                <div><dt>업무</dt><dd>{(adapter?.title ?? domainName) || "–"}</dd></div>
+                <div><dt>데이터</dt><dd>{dataset ? `번호 ${dataset.seed} · ${dataset.items.toLocaleString()}건` : "아직 없음"}</dd></div>
+                <div><dt>심어둔 문제</dt><dd>{dataset ? (dataset.faults.length ? dataset.faults.join(" · ") : "없음") : "–"}</dd></div>
+              </dl>
+            </div>
+          );
+        })()}
         {fatal && <p className="critical-text">✕ 서버에 연결할 수 없습니다: {fatal}</p>}
         {domain && adapter && tab === "domain" && (
           <DomainPanel domainName={domain.name} adapter={adapter} dataset={dataset} busy={busy} onGenerate={generate} />

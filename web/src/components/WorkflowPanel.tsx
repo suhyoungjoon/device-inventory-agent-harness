@@ -86,7 +86,7 @@ export default function WorkflowPanel({
   if (graph && !graph.available) {
     return (
       <section className="panel">
-        <h2>Agent workflow (Langgraph version)</h2>
+        <h2>Agent workflow (LangGraph)</h2>
         <p className="warning-text">이 화면은 LangGraph가 필요합니다: {graph.reason}</p>
         <p className="muted small">다른 탭은 그대로 쓸 수 있습니다.</p>
       </section>

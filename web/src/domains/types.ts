@@ -69,6 +69,7 @@ export interface DomainTerms {
 
 export interface DomainAdapter {
   ResultView: ComponentType<ResultViewProps>;
+  title?: string;   // 화면에 보일 업무 이름 (예: 출동 배정). 없으면 도메인 이름 그대로
   terms?: DomainTerms;
   metrics: MetricSpec[];
   // 실행 범위 후보 (비용 때문에 AI는 일부만 돌린다). itemIds는 처리 순서

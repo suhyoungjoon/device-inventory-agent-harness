@@ -5,6 +5,7 @@ import { BRANCH, MAKER, VALUE_LABELS } from "./names";
 // 항목 ID "W1-A-M01" = 주차 · 지점 · 모델
 export const inventoryAdapter: DomainAdapter = {
   ResultView: InventoryView,
+  title: "단말 재고·구매",
   terms: { item: "발주 항목", decide: "발주", decided: "발주 결정", agent: "발주 에이전트", unassigned: "미발주", unit: "건",
            opinionExample: "플래그십은 안전재고 2주까지만" },
   metrics: [
