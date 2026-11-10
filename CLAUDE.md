@@ -72,6 +72,7 @@ python -m api.main               # API + 빌드된 프런트엔드 서빙 (http:
 (cd web && npm run dev)          # 프런트엔드 개발 서버 (API는 :8000으로 프록시)
 python -m scripts.snapshot export --out demo/bundle --note "..."   # 시연 번들 (runs/harness.db + 커밋된 도메인 파일, --agents-flows runs/agents_flows면 LangGraph agents 실행 기록도)
 python -m api.main --demo demo/bundle   # 시연 모드: 저장된 AI 결과만 재생, LLM·네트워크 없음
+sh scripts/render_start.sh   # 호스팅 시작 명령 (Render): DEMO_BUNDLE 있으면 시연 모드, 없으면 실제 AI. 배포는 render.yaml + web/vercel.json, docs/deploy.md
 python -m scripts.rehearsal_bundle      # API 키 없이 쓰는 리허설 번들 (가짜 LLM) → demo/rehearsal
 node scripts/record_demo.mjs --stills   # 시연 장면 녹화 (시연 모드 서버에 대해, runs/recordings)
 python -m scripts.demo_take check|reset  # 시연 동영상 테이크 점검·초기화 (규칙 파일 되돌리기 + 녹화용 DB runs/recordings/rec 새로 복사, 녹화 서버 명령 출력)

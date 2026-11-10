@@ -1,0 +1,133 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "rewrites": [
+    {
+      "source": "/domains",
+      "destination": "https://inventory-harness-api.onrender.com/domains"
+    },
+    {
+      "source": "/domains/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/domains/:path*"
+    },
+    {
+      "source": "/runs",
+      "destination": "https://inventory-harness-api.onrender.com/runs"
+    },
+    {
+      "source": "/runs/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/runs/:path*"
+    },
+    {
+      "source": "/harness",
+      "destination": "https://inventory-harness-api.onrender.com/harness"
+    },
+    {
+      "source": "/harness/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/harness/:path*"
+    },
+    {
+      "source": "/compare",
+      "destination": "https://inventory-harness-api.onrender.com/compare"
+    },
+    {
+      "source": "/compare/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/compare/:path*"
+    },
+    {
+      "source": "/analysis",
+      "destination": "https://inventory-harness-api.onrender.com/analysis"
+    },
+    {
+      "source": "/analysis/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/analysis/:path*"
+    },
+    {
+      "source": "/proposals",
+      "destination": "https://inventory-harness-api.onrender.com/proposals"
+    },
+    {
+      "source": "/proposals/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/proposals/:path*"
+    },
+    {
+      "source": "/history",
+      "destination": "https://inventory-harness-api.onrender.com/history"
+    },
+    {
+      "source": "/history/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/history/:path*"
+    },
+    {
+      "source": "/memory",
+      "destination": "https://inventory-harness-api.onrender.com/memory"
+    },
+    {
+      "source": "/memory/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/memory/:path*"
+    },
+    {
+      "source": "/constraints",
+      "destination": "https://inventory-harness-api.onrender.com/constraints"
+    },
+    {
+      "source": "/constraints/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/constraints/:path*"
+    },
+    {
+      "source": "/params",
+      "destination": "https://inventory-harness-api.onrender.com/params"
+    },
+    {
+      "source": "/params/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/params/:path*"
+    },
+    {
+      "source": "/demo",
+      "destination": "https://inventory-harness-api.onrender.com/demo"
+    },
+    {
+      "source": "/demo/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/demo/:path*"
+    },
+    {
+      "source": "/workflow",
+      "destination": "https://inventory-harness-api.onrender.com/workflow"
+    },
+    {
+      "source": "/workflow/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/workflow/:path*"
+    },
+    {
+      "source": "/agents",
+      "destination": "https://inventory-harness-api.onrender.com/agents"
+    },
+    {
+      "source": "/agents/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/agents/:path*"
+    },
+    {
+      "source": "/agent-tab",
+      "destination": "https://inventory-harness-api.onrender.com/agent-tab"
+    },
+    {
+      "source": "/agent-tab/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/agent-tab/:path*"
+    },
+    {
+      "source": "/llm",
+      "destination": "https://inventory-harness-api.onrender.com/llm"
+    },
+    {
+      "source": "/llm/:path*",
+      "destination": "https://inventory-harness-api.onrender.com/llm/:path*"
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

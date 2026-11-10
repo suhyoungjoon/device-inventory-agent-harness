@@ -1,0 +1,54 @@
+# 가상 데이터에 심을 문제 패턴 (정답표). 분석 agent에게 공개하지 않고 평가에만 쓴다.
+#   generation: 생성기가 패턴을 주입하는 규칙 (수치는 M21-b에서 규칙 agent로 돌려보며 조정)
+#   expected:   결과에 드러나야 하는 현상 (사람이 읽는 설명)
+#   answer:     fault_scorer가 분석 리포트와 매칭할 때 쓰는 기준
+
+P1:
+  name: 신제품 초반 수요 집중
+  generation:
+    description: 강남지점(B) 신규 모델의 계획 기간 초반(1~3주) 실제 수요를 크게 올린다
+    branch: B
+    phase: new
+    weeks: [1, 2, 3]
+    multiplier: 2.0
+  expected: 그 구간 결품률 급등 (이동평균이 갑자기 오른 수요를 늦게 따라감)
+  answer:
+    dims: {branch: B, phase: new, week_band: early}
+    param_hint: forecast.new_model_boost
+
+P2:
+  name: 제조사 공급 편중
+  generation:
+    description: 제조사 C의 주간 공급 한도를 수요보다 빠듯하게 줄인다
+    maker: MC
+    supply_cap: 90
+  expected: 제조사 C 모델만 공급 한도(SUPPLY_CAP)로 발주 실패
+  answer:
+    dims: {maker: MC}
+    reason_codes: [SUPPLY_CAP]
+
+P3:
+  name: 지점 간 재고 불균형
+  generation:
+    description: 서초지점(A)은 과거 수요를 부풀려 과잉 발주, 송파지점(C)은 과거 수요를 줄여 과소 발주
+    inflated_branch: A
+    inflate: 1.6
+    deflated_branch: C
+    deflate: 0.6
+  expected: 결품률보다 지점별 평균 재고일수 차이에 드러남 (서초 과잉)
+  answer:
+    metric: avg_stock_days
+    direction: high
+    requires_tools: [branch_stock_stats]
+    confirm_cause: true
+
+P4:
+  name: 플래그십 수요 변동
+  generation:
+    description: 플래그십 모델군의 주간 수요 변동(변동계수)을 키운다 (이력과 계획 기간 모두)
+    family: flagship
+    cv: 0.6
+  expected: 플래그십만 결품. 그 모델군에만 안전재고를 늘리는 구간 조건으로 개선
+  answer:
+    dims: {family: flagship}
+    param_hint: safety.weeks

@@ -1,0 +1,83 @@
+# 분석 agent가 집계할 차원과 코드 (초안).
+# DecisionRecord.dims의 키는 dimensions에, reason_code는 reason_codes에,
+# Violation.rule은 violation_rules에 선언된 값만 쓴다.
+
+dimensions:
+  branch:        {label: 지점,     values: [A, B, C]}
+  hour:          {label: 시간대,   format: "HH", description: 고객 희망시간의 시(00~23)}
+  work_type:     {label: 작업유형, values: [install, repair]}          # 개통, 장애
+  media:         {label: 매체,     values: [HFC, FTTx, CATV]}
+  building_type: {label: 건물유형, values: [house, apartment]}         # 주택, 아파트
+  difficulty:    {label: 난이도,   values: [none, pole, outdoor, high_risk]}  # 일반, 승주, 옥외, 고위험
+  area_zone:     {label: 관할 경계 여부, values: [core, boundary], description: 고객 좌표가 관할 경계 근처(boundary)인지}
+
+names:                          # 쉬운 이름 (분석 리포트를 업무를 모르는 사람도 읽게): 차원 값·사유 코드 → 화면 이름.
+                                # 분석 agent가 설명·추정 원인에 코드 대신 이 이름을 쓴다. 화면 어댑터의 이름과 같게 둔다
+  A: 서초지점
+  B: 강남지점
+  C: 송파지점
+  install: 개통
+  repair: 장애
+  house: 주택
+  apartment: 아파트
+  none: 일반
+  pole: 승주
+  outdoor: 옥외
+  high_risk: 고위험
+  core: 관할 안쪽
+  boundary: 경계 지역
+  NO_SKILL: 기술 보유자 없음
+  NO_CERT: 자격 보유자 없음
+  NO_TIME_MATCH: 희망시간에 가능한 사람 없음
+  OUT_OF_AREA: 갈 수 있는 거리 밖
+  CAPACITY: 일정이 꽉 참
+
+not_in_data:                    # 이 가상 데이터에 없는 개념: 분석 agent가 원인·현장 영향에 쓰면 고쳐 오게 하고, 그래도 쓰면 그 문장을 뺀다
+  - 차량
+  - 배차
+  - 장비
+  - 요일
+  - 주말
+  - 평일
+  - 교대
+  - 출발 준비
+  - 날씨
+  - 교통
+  - 정체
+  - 휴가
+  - 결원
+  - 연차
+
+resources:                      # 자원 단위 발견 (M12-d): 분석 발견의 resources 칸에 적을 수 있는 자원
+  worker:
+    label: 작업자
+    id_field: worker_id         # DecisionRecord.decision에서 이 자원을 가리키는 키 (화면 강조용)
+    traits:                     # 발견에 함께 적을 수 있는 자원 속성 (값은 인용한 도구 결과에 있어야 한다)
+      available: {label: 가능시간}
+      skills: {label: 기술}
+      certs: {label: 자격}
+      branch: {label: 지점}
+
+metrics:                        # 개선안 순위 (M15-A): 핵심 지표(primary)와 좋아지는 방향. 화면 어댑터와 같게 둔다
+                                # target: 개선 루프 목표값 (M15-B, 핵심 지표가 이 값에 닿으면 회차를 끝낸다)
+  assignment_rate:         {label: 배정 성공률,     format: pct, primary: true, better: up, target: 0.85}
+  desired_time_match_rate: {label: 희망시간 준수율, format: pct, better: up}
+  on_time_rate:            {label: 정시 배정 비율,  format: pct, better: up}
+  avg_travel_min:          {label: 평균 이동시간,   unit: 분, better: down}
+  worker_utilization:      {label: 작업자 가동률,   format: pct, better: up}
+
+reason_codes:                   # DecisionRecord.reason_code (status가 success가 아닐 때)
+  NO_SKILL: 해당 매체 기술을 보유한 후보 없음
+  NO_CERT: 난이도(승주·고위험)에 필요한 자격을 보유한 후보 없음
+  NO_TIME_MATCH: 3단계까지 완화해도 희망시간에 맞는 후보 없음
+  OUT_OF_AREA: 3단계까지 완화해도 지역 범위 안에 후보 없음
+  CAPACITY: 조건을 만족하는 후보는 있으나 일정이 모두 차 있음
+  BLOCKED_BY_GUARDRAIL: 필수조건 위반으로 가드레일이 차단
+  NEEDS_APPROVAL: 승인 필요 조건에 해당해 대기
+
+violation_rules:                # Violation.rule (validate()가 반환, 필수조건)
+  skill_required: 작업자가 지시서 매체 기술을 보유하지 않음
+  cert_required: 승주·고위험 작업에 필요한 자격이 없음
+  schedule_overlap: 같은 작업자의 작업 시간이 겹침 (이동시간 포함)
+  outside_availability: 작업자 가능시간 밖에 배정
+  invalid_decision: 존재하지 않는 지시서·작업자, 시각 형식 오류, 같은 지시서 중복 결정
