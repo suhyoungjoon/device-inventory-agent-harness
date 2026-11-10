@@ -187,7 +187,7 @@ export default function ImprovementPanel({
           {lastCycle && <> · 마지막 개선 한 바퀴 {fmtUsd(lastCycle.llm_cost_usd)}{cycleSeconds != null && ` · ${fmtSeconds(cycleSeconds)}`}</>}</span>
       </SideGroup>
       {saved.length > 0 && (
-        <SideGroup title="선택: 저장된 제약">
+        <SideGroup title="저장된 제약">
           <span className="muted small" title="LangGraph agents 탭·에이전트 탭에서 의견을 제약으로 정리하고 사람이 확정한 것입니다. 켜진 제약은 다음 개선 제안 요청과 agents 탭 실행에 자동으로 들어갑니다">
             현장 의견에서 확정 · 켜짐 {saved.filter((c) => c.active).length}개 / {saved.length}개
           </span>

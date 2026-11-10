@@ -14,6 +14,7 @@ import { constraintText } from "./ImprovementPanel";
 import { OpinionHelp, opinionChips } from "./opinionHelp";
 import { usePoll } from "./usePoll";
 import SidePanel, { SideGroup } from "./SidePanel";
+import { L } from "../terms";
 
 // 에이전트 탭 (M16): 핵심 에이전트를 하나씩 실행하고, 그 처리 흐름(턴 → 도구 → 하네스 검사)을 한 화면에서 본다.
 // 실행은 기존 API를 그대로 부른다 (배정 /runs, 분석 /analysis, 개선 /proposals). 의견 정리만 /agent-tab/opinion.
@@ -261,7 +262,7 @@ export default function AgentRunsPanel({
     <section className="agent-tab">
       <SidePanel>
       <SideGroup title="에이전트 설명">
-          <p className="muted small">{AGENTS.find((a) => a.id === agent)?.desc}</p>
+          <p className="muted small">{L(AGENTS.find((a) => a.id === agent)?.desc)}</p>
 
       </SideGroup>
       <SideGroup title="입력">
@@ -269,7 +270,7 @@ export default function AgentRunsPanel({
             {agent === "dispatch" && (
               <>
                 <p className="small">데이터 번호 {seed} · 심어둔 문제 {faults.join("·") || "없음"} <span className="muted">(비교 탭 설정)</span></p>
-                <label title="처리 순서 앞에서부터 (1~100건). 늘리면 시간·비용이 건수만큼 늘어난다 (10건 약 1분 · $0.015)">지시서 건수 (1~100) <input type="number" min={1} max={MAX_ITEMS} value={items}
+                <label title="처리 순서 앞에서부터 (1~100건). 늘리면 시간·비용이 건수만큼 늘어난다 (10건 약 1분 · $0.015)">{L("지시서")} 건수 (1~100) <input type="number" min={1} max={MAX_ITEMS} value={items}
                   onChange={(e) => setItems(Math.max(1, Math.min(MAX_ITEMS, Number(e.target.value) || 1)))} /></label>
                 <label title="L5면 단계마다 기록이 남아 끝난 뒤에도 같은 타임라인을 다시 볼 수 있다">하네스 레벨{" "}
                   <select value={level} onChange={(e) => setLevel(e.target.value)}>
@@ -323,7 +324,7 @@ export default function AgentRunsPanel({
 
       </SideGroup>
       {cache && !cache.demo && (
-        <SideGroup title="선택">
+        <SideGroup title="실행 설정">
           {cache && !cache.demo && (
             <label className="small agent-cache" title={`서버 전체 설정 (${cache.source}). 켜면 AI에게 보내는 입력이 이전과 똑같을 때 API를 부르지 않고 저장된 응답을 그대로 쓴다(비용 0, 결과도 같다). 끄면 매번 실제로 부른다(비용). 다음 실행부터 적용`}>
               <input type="checkbox" checked={cache.enabled} onChange={(e) => toggleCache(e.target.checked)} />{" "}
@@ -340,8 +341,8 @@ export default function AgentRunsPanel({
           <div className="agent-list agent-list-row" role="radiogroup" aria-label="에이전트">
             {AGENTS.map((a) => (
               <button key={a.id} role="radio" aria-checked={agent === a.id} className={agent === a.id ? "agent-pick active" : "agent-pick"}
-                title={a.desc} onClick={() => { setAgent(a.id); setConfirming(false); setError(null); }}>
-                <strong>{a.label}</strong>
+                title={L(a.desc)} onClick={() => { setAgent(a.id); setConfirming(false); setError(null); }}>
+                <strong>{L(a.label)}</strong>
                 <span className="muted small">{info?.agents.find((x) => x.agent === a.id)?.model ?? ""}</span>
               </button>
             ))}

@@ -108,7 +108,7 @@ export default function WorkflowPanel({
   return (
     <section className="workflow">
       <SidePanel>
-      <SideGroup title="데이터 (기본값)">
+      <SideGroup title="데이터">
         <label title={tip("seed")}>
           {TERMS.seed.label} <input type="number" value={form.seed} onChange={(e) => setForm({ ...form, seed: Number(e.target.value) })} />
         </label>
@@ -127,7 +127,7 @@ export default function WorkflowPanel({
             onChange={(e) => setForm({ ...form, items: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} />
         </label>
       </SideGroup>
-      <SideGroup title="선택">
+      <SideGroup title="실행 설정">
         <label title="AI 방식 실행에 쓸 하네스 레벨">
           하네스 레벨{" "}
           <select value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>

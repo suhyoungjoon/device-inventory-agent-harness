@@ -133,6 +133,14 @@ export function L(text: string | undefined): string | undefined {
     .replace(/배정 에이전트/g, t.agent)
     .replace(/미배정/g, t.unassigned)
     .replace(/재배정/g, `다시 ${t.decide}`)
+    .replace(/지시서(를|가|는)(?![가-힣])/g, (_m, j: string) => t.item + josaFor(t.item, j))
     .replace(/지시서/g, t.item)
     .replace(/배정/g, t.decide);
+}
+
+// 바꾼 낱말의 받침에 맞춘 조사 (지시서를 → 발주 항목을)
+function josaFor(word: string, josa: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const hasFinal = code >= 0 && code <= 11171 && code % 28 !== 0;
+  return ({ 를: hasFinal ? "을" : "를", 가: hasFinal ? "이" : "가", 는: hasFinal ? "은" : "는" } as Record<string, string>)[josa] ?? josa;
 }

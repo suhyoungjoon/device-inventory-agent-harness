@@ -795,3 +795,21 @@ header.app-bar h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
   box-shadow: 0 0 0 1px var(--border); min-width: 84px; }
 .page-context dt { font-size: 11px; color: var(--text-muted); }
 .page-context dd { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 탭 안쪽: 실행 줄(도구 막대), 패널 제목, 표 머리글 */
+.run-bar, .wf-bar { background: var(--surface); box-shadow: 0 0 0 1px var(--border); border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; }
+.run-bar > button { padding: 6px 14px; font-weight: 600; }
+.run-bar > button + button { position: relative; margin-left: 14px; }
+.run-bar > button + button::before { content: "→"; position: absolute; left: -19px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); font-weight: 400; pointer-events: none; }
+.run-bar .status-line { justify-content: flex-end; font-size: 12px; }
+.wf-bar { border-left: 3px solid var(--series-1); }
+main .panel { border-radius: 12px; }
+main .panel > h2, main .panel-head h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+main .panel > h2 { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+main .panel-head { padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.panel.side-rule { border-top: 3px solid var(--axis); }
+.panel.side-ai { border-top: 3px solid var(--series-1); }
+main table thead th { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.tile { background: var(--page); border-radius: 10px; }
+.empty { padding: 56px 0; font-size: 13px; }

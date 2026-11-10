@@ -197,7 +197,7 @@ export default function AgentsPanel({
   return (
     <section className="workflow agents">
       <SidePanel>
-      <SideGroup title="데이터 (기본값)">
+      <SideGroup title="데이터">
         <label title={tip("seed")}>
           {TERMS.seed.label} <input type="number" value={form.seed} onChange={(e) => setForm({ ...form, seed: Number(e.target.value) })} />
         </label>

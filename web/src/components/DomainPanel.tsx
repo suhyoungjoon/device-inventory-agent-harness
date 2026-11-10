@@ -5,6 +5,7 @@ import { CORE_REASON_NAMES, TERMS, tip, type TermKey } from "../terms";
 import type { ChangeCard, Dataset, DomainDefinition, DomainFault, ParamKind, Sensitivity, SensitivityRow } from "../types";
 import { fmtMetric } from "./MetricsPanel";
 import SidePanel, { SideGroup } from "./SidePanel";
+import { adapters } from "../domains";
 
 type Section = "overview" | "params" | "rules" | "spec" | "data" | "faults";
 const SECTIONS: { id: Section; label: string; term?: TermKey }[] = [
@@ -83,7 +84,7 @@ function Overview({ def, dataset, busy, onGenerate }: {
   return (
     <div className="domain-grid">
       <div className="panel">
-        <h2 title={tip("domain")}>{TERMS.domain.label}: {def.domain}</h2>
+        <h2 title={tip("domain")}>{TERMS.domain.label}: {adapters[def.domain]?.title ?? def.domain}</h2>
         <div className="tiles">
           <Tile label={`${TERMS.params.label} 버전`} value={`v${String(def.params.version)}`}
             note={`묶음 ${sections.length}개 · ${TERMS.overrides.label} ${rules}개`} tech={tip("params")} />

@@ -66,7 +66,7 @@ export default function ComparePanel(p: CompareProps) {
   return (
     <section className="compare">
       <SidePanel>
-      <SideGroup title="데이터 (기본값)">
+      <SideGroup title="데이터">
         <label title={tip("seed")}>
           {TERMS.seed.label} <input type="number" value={p.seed} onChange={(e) => p.setSeed(Number(e.target.value))} />
         </label>
@@ -90,7 +90,7 @@ export default function ComparePanel(p: CompareProps) {
           </label>
         )}
       </SideGroup>
-      <SideGroup title="선택">
+      <SideGroup title="AI 실행 설정">
         <HarnessToggle harness={p.harness} level={p.level} onChange={p.setLevel} disabled={!!p.busy} />
         {p.harness && (
           <button type="button" className="link-button" aria-expanded={explain} onClick={() => setExplain(!explain)}>
@@ -141,7 +141,7 @@ export default function ComparePanel(p: CompareProps) {
       )}
 
       <div className="split">
-        <article className="panel">
+        <article className="panel side-rule">
           <h2 title={tip("rule")}>{TERMS.rule.label}</h2>
           {p.dataset?.instance && p.ruleRun && ruleDecisions ? (
             view(p.ruleRun, ruleDecisions)
@@ -153,7 +153,7 @@ export default function ComparePanel(p: CompareProps) {
             </p>
           )}
         </article>
-        <article className="panel">
+        <article className="panel side-ai">
           <div className="panel-head">
             <h2 title={tip("ai")}>{TERMS.ai.label}</h2>
             {p.aiRuns.length > 0 && (
