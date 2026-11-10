@@ -547,7 +547,13 @@ const scenes = {
     await page.getByRole("button", { name: "기록 열기" }).click();
     const pick = page.getByRole("combobox", { name: "저장한 실행 기록" });
     await pick.waitFor({ timeout: TIMEOUT });
-    const value = await pick.locator("option").nth(1).getAttribute("value");
+    // 가장 최근 기록 중 재고 도메인이 아닌 것 (이 레포에는 v7용 재고 기록이 같은 폴더에 있다)
+    const ids = await pick.locator("option").evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+    let value = null;
+    for (const id of ids) {
+      const domain = await page.evaluate(async (rid) => (await (await fetch(`/agents/records/${rid}`)).json()).inputs?.domain, id);
+      if (domain !== "inventory") { value = id; break; }
+    }
     if (!value) throw new Error("저장한 기록이 없음 (v3를 먼저 녹화)");
     await pick.selectOption(value);
     await page.getByRole("button", { name: "끝으로" }).click();
@@ -556,7 +562,7 @@ const scenes = {
     const line = await text(page.locator(".loop-panel table tbody tr").first());
     fact("loop", line);
     const rate = /(\d+\.\d%\s*→\s*\d+\.\d%)/.exec(line ?? "")?.[1] ?? "-";
-    await say(page, `이번 실행 1회차 ${rate} · 반영은 사람 승인 뒤에만 · 다음 단계: 실제 실적 데이터 연동`);
+    await say(page, `이번 실행 1회차 ${rate} · 반영은 사람 승인 뒤에만`);
   },
 
   // v7 도메인 팩 확장 (M21, 이 레포): 같은 하네스에 두 번째 업무(단말 재고·구매)를 붙여 한 번 돌린 결과.
@@ -594,8 +600,14 @@ const scenes = {
     await page.getByRole("button", { name: "기록 열기" }).click();
     const pick = page.getByRole("combobox", { name: "저장한 실행 기록" });
     await pick.waitFor({ timeout: TIMEOUT });
-    const value = await pick.locator("option").nth(1).getAttribute("value");
-    if (!value) throw new Error("저장한 기록이 없음 (재고 도메인 실제 AI 실행을 먼저 저장)");
+    // 저장한 기록 중 재고 도메인 것 (같은 테이크의 출동 기록 v3과 섞여 있다)
+    const ids = await pick.locator("option").evaluateAll((os) => os.map((o) => o.value).filter(Boolean));
+    let value = null;
+    for (const id of ids) {
+      const domain = await page.evaluate(async (rid) => (await (await fetch(`/agents/records/${rid}`)).json()).inputs?.domain, id);
+      if (domain === "inventory") { value = id; break; }
+    }
+    if (!value) throw new Error("저장한 재고 도메인 기록이 없음 (재고 도메인 실제 AI 실행을 먼저 저장)");
     await pick.selectOption(value);
     await page.getByRole("button", { name: "끝으로" }).click();
     fact("record", value);
