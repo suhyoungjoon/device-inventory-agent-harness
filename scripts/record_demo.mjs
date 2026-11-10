@@ -360,6 +360,7 @@ const scenes = {
     fact("rule_assignment_rate", rate);
     await say(page, `출동 배정(지점 3곳 · 작업자 30명 · 지시서 1,500건)은 규칙 엔진이 한다. 배정 성공 ${rate}`);
     await say(page, "실패 원인은 사람이 매번 찾는다 → AI 에이전트가 분석·개선을 맡고, 하네스가 그 출력을 검사한다");
+    await say(page, "오늘 볼 흐름: 하네스 레벨별 배정 → 결과 분석 → 개선안 제안·검증 → 사람 승인 → 규칙 반영");
   },
 
   // v2 배정에서의 하네스 (최소): 10건을 L5(규칙 문서·조회 도구·규칙 위반 검사·다시 시도·과정 기록)로 배정하고,
@@ -540,7 +541,7 @@ const scenes = {
       : "계획 대비 가상 실적: 사람만 참고하고 AI에는 숨긴다");
   },
 
-  // v6 마무리: v3에서 저장한 기록을 다시 열어 결과 (AI 호출 없음)
+  // v6 마무리: v3에서 저장한 기록을 다시 열어 전체 로그와 결과를 넓게 본다 (AI 호출 없음)
   async v6(page) {
     await openApp(page);
     await page.getByRole("tab", { name: "LangGraph agents" }).click();
@@ -557,12 +558,38 @@ const scenes = {
     if (!value) throw new Error("저장한 기록이 없음 (v3를 먼저 녹화)");
     await pick.selectOption(value);
     await page.getByRole("button", { name: "끝으로" }).click();
-    await page.locator(".loop-panel").scrollIntoViewIfNeeded().catch(() => undefined);
     fact("record", value);
+    // 녹화용: 로그 상자만 키워 한 화면에 더 많은 줄이 보이게 한다 (줄 내용·순서는 그대로)
+    await page.addStyleTag({ content: ".ag-timeline .agt-list { max-height: 620px !important; } .event-log { max-height: 430px !important; }" });
+
+    // (1) 상위 로그 전체: 한 회차의 모든 단계가 시간 순서로 남는다
+    const timeline = page.locator(".ag-timeline").first();
+    await timeline.scrollIntoViewIfNeeded().catch(() => undefined);
+    const steps = await page.locator(".agt-row").count();
+    fact("timeline_rows", steps);
+    await say(page, `실행 기록 다시 보기: 1회차 ${steps}단계가 시각 · 종류 · 결과 · 소요 시간 · AI 비용과 함께 남는다`);
+    await pause(page, 2500);
+
+    // (2) 에이전트 안쪽 로그: 분석 에이전트 줄을 눌러 턴별 진행 기록을 넓게
+    const row = page.locator(".agt-row").filter({ hasText: "분석 에이전트" }).first();
+    if (await row.count()) {
+      await row.click();
+      const log = page.locator(".event-log").first();
+      await log.waitFor({ timeout: TIMEOUT }).catch(() => undefined);
+      await log.scrollIntoViewIfNeeded().catch(() => undefined);
+      const lines = await log.locator("li").count();
+      fact("event_lines", lines);
+      await say(page, `에이전트 안쪽 기록 ${lines}줄: 관점별 분석 → 도구 호출 → 근거 검사 → 다시 제출이 그대로 남는다`, "tool");
+      await pause(page, 2500);
+    }
+
+    // (3) 결과 확인
+    await page.locator(".loop-panel").scrollIntoViewIfNeeded().catch(() => undefined);
     const line = await text(page.locator(".loop-panel table tbody tr").first());
     fact("loop", line);
     const rate = /(\d+\.\d%\s*→\s*\d+\.\d%)/.exec(line ?? "")?.[1] ?? "-";
-    await say(page, `이번 실행 1회차 ${rate} · 반영은 사람 승인 뒤에만`);
+    await say(page, `1회차 결과: 배정 성공률 ${rate} · 규칙 위반 0건 · 반영은 사람 승인 뒤에만`);
+    await pause(page, 2000);
   },
 
   // v7 도메인 팩 확장 (M21, 이 레포): 같은 하네스에 두 번째 업무(단말 재고·구매)를 붙여 한 번 돌린 결과.
