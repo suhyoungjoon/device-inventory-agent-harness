@@ -743,6 +743,10 @@ def build_flow(ctx: AgentContext, levels: dict[str, Level], checkpointer=None, e
             lines.append(f"✕ {out['failure']['label']}: {out['failure']['reason']}")
         if judgment:
             lines.append(f"추천 {len(proposals)}건 · 끝낸 이유: {END_REASONS.get(judgment.get('end_reason'), judgment.get('end_reason'))}")
+            if not proposals:   # 사람 검토로 넘어가지 않는 까닭을 화면에 한 줄로
+                lines.append("분석에서 개선할 문제를 찾지 못함 → 개선안 없이 여기서 멈춤 (사람 검토 없음)"
+                             if not findings else
+                             "효과가 기준 미만이라 추천하지 않음 → 사람 검토로 넘기지 않고 종료")
             lines += [f"{p['rank']['rank']}. {p['body'].get('title', '')} (확신도 {p['recommendation'].get('confidence')})"
                       for p in proposals]
             lines += [f"사람에게 묻는 것: {q}" for q in judgment.get("questions_for_human") or []]

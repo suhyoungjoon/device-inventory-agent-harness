@@ -1,0 +1,68 @@
+# 단말 재고·구매 도메인: 분석 agent가 집계할 차원과 코드.
+# DecisionRecord.dims의 키는 dimensions에, reason_code는 reason_codes에,
+# Violation.rule은 violation_rules에 선언된 값만 쓴다.
+
+dimensions:
+  branch:    {label: 지점,      values: [A, B, C]}
+  family:    {label: 모델군,    values: [flagship, mid, kids_senior]}
+  maker:     {label: 제조사,    values: [MA, MB, MC]}
+  phase:     {label: 출시 단계, values: [new, main, eol]}
+  week_band: {label: 주차 구간, values: [early, middle, late], description: 계획 기간 1~3주 초반, 4~6주 중반, 7~8주 후반}
+
+names:                          # 쉬운 이름: 차원 값·사유 코드 → 화면 이름 (분석 리포트에 코드 대신 쓴다)
+  A: 서초지점
+  B: 강남지점
+  C: 송파지점
+  flagship: 플래그십
+  mid: 보급형
+  kids_senior: 키즈·시니어
+  MA: 제조사 A
+  MB: 제조사 B
+  MC: 제조사 C
+  new: 신규 출시
+  main: 주력
+  eol: 단종 예정
+  early: 초반(1~3주)
+  middle: 중반(4~6주)
+  late: 후반(7~8주)
+  BUDGET_SHORT: 주간 예산 부족
+  WAREHOUSE_FULL: 창고 자리 부족
+  SUPPLY_CAP: 제조사 공급 한도 초과
+  EOL_BLOCKED: 단종 예정이라 발주 금지
+
+not_in_data:                    # 이 가상 데이터에 없는 개념: 분석 agent가 원인·현장 영향에 쓰면 고쳐 오게 한다
+  - 프로모션
+  - 할인
+  - 보조금
+  - 경쟁사
+  - 날씨
+  - 명절
+  - 고객 불만
+  - 반품
+  - 지점 간 이동
+
+metrics:                        # 개선안 순위: 핵심 지표(primary)와 좋아지는 방향. 화면 어댑터와 같게 둔다
+                                # min_effect: 본안으로 올릴 최소 개선폭 (결품률은 값이 작아 코어 기본 1%p 대신 0.5%p)
+  stockout_rate:       {label: 결품률,         format: pct, primary: true, better: down, target: 0.05, min_effect: 0.005}
+  fill_rate:           {label: 충족률,         format: pct, better: up}
+  avg_stock_days:      {label: 평균 재고일수,   unit: 일, better: down}
+  excess_stock_value:  {label: 과잉재고 금액,   unit: 만원, better: down}
+  purchase_amount:     {label: 구매 금액,       unit: 만원, better: down}
+  forecast_mape:       {label: 예측 오차(MAPE), format: pct, better: down}
+  violation_count:     {label: 필수조건 위반 수, unit: 건, better: down}
+
+reason_codes:                   # DecisionRecord.reason_code (필요량을 하나도 못 샀을 때)
+  BUDGET_SHORT: 주간 예산 상한에 걸려 필요한 발주를 하지 못함
+  WAREHOUSE_FULL: 지점 창고 용량(현재고 + 입고 예정)이 차서 발주하지 못함
+  SUPPLY_CAP: 제조사 주간 공급 한도에 걸려 발주하지 못함
+  EOL_BLOCKED: 단종 예정 모델의 발주 금지 주차가 지나 발주하지 못함
+  BLOCKED_BY_GUARDRAIL: 필수조건 위반으로 가드레일이 차단
+  NEEDS_APPROVAL: 승인 필요 조건에 해당해 대기
+
+violation_rules:                # Violation.rule (validate()가 반환, 필수조건)
+  MOQ: 발주량이 0 이상 정수이고 최소 발주 단위(order.moq)의 배수가 아님
+  BUDGET: 주차별 발주 금액 합이 주간 예산 상한(budget.weekly_cap)을 넘음
+  WAREHOUSE: 지점 (현재고 + 입고 예정)이 창고 용량을 넘는데 발주함
+  SUPPLY: 제조사별 주간 발주 합이 공급 한도를 넘음
+  EOL: 단종 예정 모델을 발주 금지 주차 이후에 발주함
+  INVALID_DECISION: 존재하지 않는 항목, 제조사 불일치, 형식 오류, 같은 항목 중복 결정

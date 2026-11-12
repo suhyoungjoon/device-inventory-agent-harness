@@ -29,7 +29,7 @@ from .changes import apply_params, params_errors
 from .constraints import constraint_violations
 from .diagnose import diagnose
 from .proposer import FINDING_SUMMARY_KEYS, propose
-from .ranking import metric_specs, minimal_change
+from .ranking import _score, load_ranking_config, metric_specs, min_effect_for, minimal_change
 from .simulate import simulate_params
 from .sweep import sweep_params
 
@@ -132,6 +132,14 @@ def _finding_id(fid: str, findings: dict) -> str | None:
     return hits[0] if len(hits) == 1 else None
 
 
+def _primary_gain(sim: dict, state: dict) -> float | None:
+    """미리 돌려본 결과의 핵심 지표 개선폭 (방향 반영). 지표를 못 읽으면 None."""
+    result = sim.get("result") or {}
+    if not state.get("specs") or not (result.get("before") and result.get("after")):
+        return None
+    return _score(result, state["specs"])["gain"]
+
+
 def judgment_problems(sub: dict, calls: dict, state: dict) -> list[str]:
     """판단 보고서 검사 (코드가 지키는 것). state: supervise()의 실행 기록 (proposals·simulations)."""
     problems = []
@@ -149,6 +157,11 @@ def judgment_problems(sub: dict, calls: dict, state: dict) -> list[str]:
             continue
         if sim.get("errors"):
             problems.append(f"{where}: 적용 불가 안은 추천할 수 없다 ({sim['errors'][0]})")
+        elif (gain := _primary_gain(sim, state)) is not None and gain < state["min_effect"] - 1e-9:
+            # 고정 흐름은 순위에서 "최소 효과 미만"을 본안에서 뺀다. Supervisor 추천도 같은 기준을 지킨다
+            problems.append(f"{where}: 핵심 지표 개선폭 {gain * 100:+.1f}%p가 최소 효과 "
+                            f"{state['min_effect'] * 100:.1f}%p 미만이라 추천할 수 없다. "
+                            "이만한 안밖에 없으면 recommendations를 비우고 end_reason을 no_further_gain으로 제출하라")
         cited = [resolve_call(c, calls) for c in r.get("cited_calls") or []]
         if not cited or None in cited:
             problems.append(f"{where}: cited_calls가 비었거나 없는 호출 번호가 있다")
@@ -190,7 +203,9 @@ def supervise(pack: DomainPack, pack_factory: Callable[[dict], DomainPack], inst
     primary = [m["key"] for m in specs if m.get("primary")]
     perspectives = perspectives or []
     state: dict = {"reports": {}, "findings": {}, "proposals": {}, "simulations": {}, "sweep_points": [],
-                   "counts": {"total": 0, "run_analysis": 0, "run_proposals": 0}, "sub_usage": [], "log": []}
+                   "counts": {"total": 0, "run_analysis": 0, "run_proposals": 0}, "sub_usage": [], "log": [],
+                   # 추천 기준: 고정 흐름의 순위와 같은 최소 효과를 Supervisor 추천에도 적용한다 (judgment_problems)
+                   "specs": specs, "min_effect": min_effect_for(specs, load_ranking_config())}
 
     def sub_events(label: str):
         return (lambda e: emit({**e, "item": label})) if on_event else None
@@ -238,14 +253,22 @@ def supervise(pack: DomainPack, pack_factory: Callable[[dict], DomainPack], inst
         state["reports"][rid] = {**body, "args": args, "items": len(subset)}
         state["sub_usage"].append(body.get("usage"))
         log("run_analysis", args, f"{rid}: 발견 {len(findings)}건")
-        return {"report_id": rid, "items": len(subset), "summary": body.get("summary", ""), "findings": findings,
-                "dropped_insufficient_evidence": len(body.get("dropped") or []), "failure": body.get("failure")}
+        out = {"report_id": rid, "items": len(subset), "summary": body.get("summary", ""), "findings": findings,
+               "dropped_insufficient_evidence": len(body.get("dropped") or []), "failure": body.get("failure")}
+        if not findings and not state["findings"]:
+            # 분석이 바꿀 거리를 못 찾았다: 개선 요청으로 넘어가지 않고 여기서 끝낸다
+            out["stop_here"] = ("개선할 문제를 찾지 못했다. 설정값으로 바꿀 것이 없으므로 run_proposals로 넘어가지 말고 "
+                                "submit_judgment로 끝내라: recommendations는 비우고 end_reason은 no_further_gain")
+        return out
 
     def run_proposals(args: dict) -> dict:
         if over := spend("run_proposals"):
             return {"error": over}
         ids = args.get("finding_ids") or list(state["findings"])
         missing = [i for i in ids if i not in state["findings"]]
+        if not ids and state["counts"]["run_analysis"]:
+            return {"error": "분석이 개선할 문제를 찾지 못했다. 개선안을 만들지 말고 submit_judgment로 끝내라 "
+                             "(recommendations 비움, end_reason no_further_gain)"}
         if missing or not ids:
             return {"error": f"없는 발견: {missing or '발견이 없다. 먼저 run_analysis'}"}
         report = {"summary": "", "findings": [state["findings"][i] for i in ids]}

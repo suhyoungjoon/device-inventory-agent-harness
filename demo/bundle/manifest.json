@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-11-13 08:20:52",
+  "git_ref": null,
+  "git_commit": null,
+  "note": "시연: 두 업무(출동 배정 + 단말 재고) 한 서버. 출동 배정은 '분석에서 문제가 없으면 Supervisor가 멈추는' 케이스",
+  "counts": {
+    "datasets": 4,
+    "rule_runs": 17,
+    "ai_runs": 6,
+    "reports": 1,
+    "proposals": 0,
+    "agents_flows": 3
+  },
+  "domain_file_sources": {
+    "dispatch/params.yaml": "working tree",
+    "dispatch/domain-spec.md": "working tree",
+    "dispatch/faults.yaml": "working tree",
+    "dispatch/dimensions.yaml": "working tree",
+    "dispatch/analysis_perspectives.yaml": "working tree",
+    "inventory/params.yaml": "working tree",
+    "inventory/domain-spec.md": "working tree",
+    "inventory/faults.yaml": "working tree",
+    "inventory/dimensions.yaml": "working tree",
+    "inventory/analysis_perspectives.yaml": "working tree"
+  }
+}

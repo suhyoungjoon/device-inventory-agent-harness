@@ -33,6 +33,18 @@ def load_ranking_config(path: str | Path = CONFIG_PATH) -> dict:
     return cfg
 
 
+def min_effect_for(specs: list[dict], config: dict | None = None) -> float:
+    """추천할 가치가 있다고 보는 핵심 지표 개선폭.
+
+    핵심 지표가 min_effect를 직접 선언하면 그 값을 쓴다 (M21: 결품률처럼 값의 범위가 작은 지표).
+    순위(rank_proposals)와 Supervisor 추천 검사가 같은 기준을 쓰도록 여기 한 곳에 둔다.
+    """
+    cfg = {**DEFAULTS, **(config or {})}
+    declared = [s["min_effect"] for s in specs
+                if s.get("primary") and isinstance(s.get("min_effect"), (int, float))]
+    return min(declared) if declared else cfg["min_effect"]
+
+
 def metric_specs(dimensions: dict) -> list[dict]:
     """dimensions()["metrics"] {키: {label, primary, better: up|down, format, unit}} → 목록. 선언이 없으면 빈 목록."""
     return [{"key": k, **(v or {})} for k, v in (dimensions.get("metrics") or {}).items()]
@@ -90,10 +102,7 @@ def rank_proposals(proposals: list[dict], specs: list[dict], config: dict | None
     """
     cfg = {**DEFAULTS, **(config or {})}
     primary = [s for s in specs if s.get("primary")]
-    # 핵심 지표가 최소 효과를 직접 선언하면 그 값을 쓴다 (M21: 결품률처럼 값의 범위가 작은 지표)
-    declared = [s["min_effect"] for s in primary if isinstance(s.get("min_effect"), (int, float))]
-    if declared:
-        cfg["min_effect"] = min(declared)
+    cfg["min_effect"] = min_effect_for(specs, cfg)
     entries, cands = {}, []
     for p in proposals:
         pid, sim = p["id"], p.get("simulation") or None
