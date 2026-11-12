@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-11-12 15:58:34",
+  "git_ref": null,
+  "git_commit": null,
+  "note": "시연: 분석에서 개선할 문제가 없으면 Supervisor가 멈추는 케이스. 결함 없는 데이터(seed 42) + 규정 한도 파라미터",
+  "counts": {
+    "datasets": 1,
+    "rule_runs": 1,
+    "ai_runs": 0,
+    "reports": 0,
+    "proposals": 0,
+    "agents_flows": 2
+  },
+  "domain_file_sources": {
+    "dispatch/params.yaml": "working tree",
+    "dispatch/domain-spec.md": "working tree",
+    "dispatch/faults.yaml": "working tree",
+    "dispatch/dimensions.yaml": "working tree",
+    "dispatch/analysis_perspectives.yaml": "working tree"
+  }
+}
