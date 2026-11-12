@@ -1,0 +1,59 @@
+# 가상 데이터에 심을 문제 패턴 (정답표). 분석 agent에게 공개하지 않고 평가에만 쓴다.
+#   generation: 생성기가 패턴을 주입하는 규칙 (수치는 M2에서 규칙 agent로 돌려보며 조정)
+#   expected:   결과에 드러나야 하는 현상 (사람이 읽는 설명)
+#   answer:     fault_scorer가 분석 리포트와 매칭할 때 쓰는 기준
+
+P1:
+  name: 시간대 수요 집중
+  generation:
+    description: B지점 오전 9~11시에 아파트 FTTx 지시서를 몰리게 생성
+    branch: B
+    hours: [9, 10]              # 9시 이상 11시 미만
+    work_filter: {building_type: apartment, media: FTTx}
+    share_of_branch_daily: 0.5
+  expected: 해당 시간대 지시서가 3단계 매칭에서 집중적으로 실패
+  answer:
+    dims: {branch: B, hour: ["09", "10"], building_type: apartment, media: FTTx}
+    reason_codes: [NO_TIME_MATCH, CAPACITY]
+
+P2:
+  name: 자격자 편중
+  generation:
+    description: 승주 자격자를 A지점에 몰아 배치
+    cert: pole
+    concentrate_in_branch: A
+    share_in_branch: 0.9
+    starved_branch: C               # 나머지 자격자는 이 지점을 피해 배치 (C지점 자격자 0명)
+  expected: C지점 승주 작업이 자격자 부족으로 미할당
+  answer:
+    dims: {branch: C, difficulty: pole}
+    reason_codes: [NO_CERT]
+
+P3:
+  name: 가능시간 불일치
+  generation:
+    description: 일부 작업자의 가능시간을 고객 희망시간 분포와 어긋나게 설정
+    worker_share: 0.2
+    availability: ["13:00", "18:00"]     # 수요는 오전에 몰리는데 오후만 가능
+  expected: 가용 인력이 있는데도 해당 작업자 활용률이 낮음
+  answer:
+    metric: worker_utilization
+    direction: low
+    requires_tools: [worker_stats]   # 작업자별 가능시간·활용률을 근거로 인용한 발견만 (자동 근거 일치)
+    resources:                       # 발견이 작업자를 적었으면, 적은 작업자 중 절반 이상이 정답(가능시간을 바꾼 작업자)이어야 한다
+      kind: worker
+      truth_key: affected_workers    # 생성기 정답표의 키
+      min_precision: 0.5
+    confirm_cause: true              # 원인(가능시간 불일치)이 맞는지는 사람이 판정해야 탐지로 센다
+
+P4:
+  name: 경계 지역 수요
+  generation:
+    description: 지점 관할 경계 근처에 고객 좌표를 몰리게 생성
+    boundary_distance_km: [3, 4]         # 관할 경계 밖 3~4km: 최대 완화(+3km)로도 닿지 않음
+    share_of_orders: 0.15
+  expected: 지역 범위 +1km 완화 시 할당성공률이 크게 오름
+  answer:
+    dims: {area_zone: boundary}
+    reason_codes: [OUT_OF_AREA]
+    param_hint: matching.area_extension_km

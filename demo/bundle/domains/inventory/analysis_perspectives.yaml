@@ -1,0 +1,35 @@
+# 관점별 분석. 분석 에이전트를 관점마다 따로 돌리고 결과를 코드로 합친다.
+#   id:       관점 식별자 (영문)
+#   name:     화면에 보일 이름
+#   question: 분석 에이전트 시스템 프롬프트 뒤에 붙는 문단. 이 관점에서 무엇을 깊게 볼지
+#   tools:    이 관점에 줄 도구 (코어 집계 도구 + 도메인 분석 도구 이름). 나머지 도구는 보이지 않는다
+# 관점을 고칠 때는 tests/test_perspectives.py의 형식 검사를 통과해야 한다.
+
+perspectives:
+  - id: stockout
+    name: 결품 패턴
+    question: |
+      이번 분석에서는 '결품 패턴' 관점만 본다.
+      어느 구간(지점·모델군·제조사·출시 단계·주차 구간)에서 재고가 없어 못 판 수요(결품)가 몰리는지 찾는다.
+      결품은 발주 실패가 아니라 재고 흐름 결과라 stockout_hotspots로 먼저 찾고 stockout_by로 확인한다. 구간은 가능한 한 좁혀서(여러 차원을 함께) slice에 적는다.
+      예측이 늦게 따라간 탓인지(forecast_error), 수요가 들쭉날쭉한 탓인지(demand_volatility)도 근거로 함께 본다.
+      결품이 적은 구간은 발견으로 올리지 않는다. 비교 기준으로만 설명에 쓴다.
+    tools: [overview, stockout_hotspots, stockout_by, forecast_error, demand_volatility]
+
+  - id: efficiency
+    name: 재고 효율
+    question: |
+      이번 분석에서는 '재고 효율' 관점만 본다.
+      재고가 남아도는 곳(평균 재고일수가 높은 지점·모델군)과 모자라는 곳의 차이, 지점 간 불균형을 찾는다.
+      지점 단위 차이는 branch_stock_stats로 보고, 지표형 발견이면 metric에 지표 이름과 방향을 적는다.
+      지점 간 재고 이동은 이 하네스의 결정 범위 밖이다. 찾은 불균형의 원인(과거 수요 기록 등)을 설명하는 데까지 한다.
+    tools: [overview, branch_stock_stats, stockout_by, forecast_error]
+
+  - id: constraint
+    name: 공급·예산 제약
+    question: |
+      이번 분석에서는 '공급·예산 제약' 관점만 본다.
+      제조사 공급 한도·주간 예산·창고 용량·단종 제한 때문에 필요한 발주를 못 한 구간을 찾는다.
+      한도 실패는 사유 코드(reason_codes)로 aggregate에 잡히고, 한도 사용률은 supply_usage로 본다.
+      한도 자체(공급 한도·예산)는 개선안이 바꿀 수 없는 값이다. 사람이 협의할 일이면 그렇게 적는다.
+    tools: [overview, aggregate, list_items, supply_usage]

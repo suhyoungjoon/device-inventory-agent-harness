@@ -29,7 +29,7 @@ from .changes import apply_params, params_errors
 from .constraints import constraint_violations
 from .diagnose import diagnose
 from .proposer import FINDING_SUMMARY_KEYS, propose
-from .ranking import _score, load_ranking_config, metric_specs, minimal_change
+from .ranking import _score, load_ranking_config, metric_specs, min_effect_for, minimal_change
 from .simulate import simulate_params
 from .sweep import sweep_params
 
@@ -205,7 +205,7 @@ def supervise(pack: DomainPack, pack_factory: Callable[[dict], DomainPack], inst
     state: dict = {"reports": {}, "findings": {}, "proposals": {}, "simulations": {}, "sweep_points": [],
                    "counts": {"total": 0, "run_analysis": 0, "run_proposals": 0}, "sub_usage": [], "log": [],
                    # 추천 기준: 고정 흐름의 순위와 같은 최소 효과를 Supervisor 추천에도 적용한다 (judgment_problems)
-                   "specs": specs, "min_effect": load_ranking_config()["min_effect"]}
+                   "specs": specs, "min_effect": min_effect_for(specs, load_ranking_config())}
 
     def sub_events(label: str):
         return (lambda e: emit({**e, "item": label})) if on_event else None
