@@ -180,3 +180,50 @@ def test_numbers_from_the_recommended_change_and_rounding_are_grounded():
     assert judgment_problems({**base, "recommendations": [ok]}, calls, state) == []
     bad = {**ok, "expected_effect": "배정 성공률 71.2%"}
     assert any("71.2%" in p for p in judgment_problems({**base, "recommendations": [bad]}, calls, state))
+
+
+# --- 분석에서 개선할 문제가 없으면 더 진행하지 않는다 (시연 케이스) ---
+
+def no_findings_policy(item, n, messages, tools):
+    """분석 에이전트가 발견 0건으로 리포트를 낸다 (결함 없는 데이터에서 바꿀 거리가 없는 상황)."""
+    names = {t["name"] for t in tools}
+    if "submit_report" in names:
+        return tool_use("submit_report", {"summary": "개선할 구간 패턴 없음", "findings": []})
+    return tool_use("submit_proposals", {"proposals": []})
+
+
+def test_analysis_without_findings_tells_supervisor_to_stop(world):
+    """발견 0건이면 run_analysis가 '여기서 끝내라'를 돌려주고, run_proposals는 거절한다."""
+    seen = {}
+
+    def script(n, m):
+        if n == 0:
+            return tool_use("run_analysis", {})
+        if n == 1:
+            return tool_use("run_proposals", {})          # 그래도 불러 보면 거절당한다
+        return judgment([], end_reason="no_further_gain")
+
+    out, sup = run(world, script, sub_policy=no_findings_policy)
+    results = [b for msg in sup.calls[-1]["messages"] if isinstance(msg.get("content"), list)
+               for b in msg["content"] if b.get("type") == "tool_result"]
+    texts = [str(b.get("content")) for b in results]
+    assert any("stop_here" in t and "run_proposals로 넘어가지 말고" in t for t in texts), texts
+    assert any("개선안을 만들지 말고" in t for t in texts), texts
+    assert out["judgment"] and out["judgment"]["end_reason"] == "no_further_gain"
+    assert out["judgment"]["recommendations"] == []
+    assert out["counts"]["run_proposals"] == 1 and not out["proposals"]   # 호출은 셌지만 안은 만들어지지 않았다
+    seen.clear()
+
+
+def test_recommendation_below_min_effect_is_rejected(world):
+    """효과가 최소 효과 기준 미만인 안은 추천할 수 없다 (고정 흐름 순위와 같은 기준)."""
+    import core.improvement.supervisor as sup_mod
+
+    real = sup_mod._primary_gain
+    sup_mod._primary_gain = lambda sim, state: 0.001        # +0.1%p: 기준(1%p) 미만
+    try:
+        out, _ = run(world, happy)
+    finally:
+        sup_mod._primary_gain = real
+    assert out["judgment"] is None
+    assert any("최소 효과" in p and "추천할 수 없다" in p for p in out["problems"]), out["problems"]
