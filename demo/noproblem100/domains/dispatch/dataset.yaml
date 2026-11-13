@@ -1,0 +1,64 @@
+# 시연(실패 0건 케이스) 전용 데이터 — 레포 기본값(domains/dispatch/dataset.yaml)은 그대로 둔다.
+# 결함 없는 데이터에 인력을 넉넉히(지점당 12명) 두고 전원이 전 매체 기술과 승주·고위험 자격을 보유한다.
+# 파라미터는 같은 폴더의 params.yaml(규정 한도까지 완화한 95.7% 케이스와 같은 값)을 쓰며, 규칙 방식 결과는
+# 배정 성공률 100.00% · 규칙 위반 0건 · 미배정 0건 · 희망시간 준수율 88.2% · 가동률 50.9%.
+# 고칠 실패가 없으므로 Supervisor가 개선안을 추천하지 않고 끝낸다.
+# core.registry.set_domain_files_root(demo/noproblem100/domains)로 쓴다.
+
+region:
+  geojson: geo/gangnam3.geojson
+branches:
+  A:
+    name: 서초
+  B:
+    name: 강남
+  C:
+    name: 송파
+boundary_zone_km: 1
+days: 10
+orders_per_day: 150
+workers_per_branch: 12
+day:
+  start: 08:00
+  end: '18:00'
+worker_availability:
+- 09:00
+- '18:00'
+desired_time:
+  step_min: 30
+  hour_weights:
+    9: 3
+    10: 3
+    11: 2
+    12: 1
+    13: 2
+    14: 2
+    15: 2
+    16: 1
+orders:
+  work_type:
+    install: 0.5
+    repair: 0.5
+  media:
+    HFC: 0.3
+    FTTx: 0.5
+    CATV: 0.2
+  difficulty:
+    none: 0.6
+    pole: 0.15
+    outdoor: 0.15
+    high_risk: 0.1
+  building_type:
+    house: 0.5
+    apartment: 0.5
+workers:
+  skill_prob:
+    HFC: 1.0
+    FTTx: 1.0
+    CATV: 1.0
+  cert_share:
+    pole: 1.0
+    high_risk: 1.0
+  cei_range:
+  - 50
+  - 100
