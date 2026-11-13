@@ -11,6 +11,8 @@ from pathlib import Path
 
 import yaml
 
+from core.registry import domain_file
+
 from .models import Branch, Instance, Order, Worker, hhmm_to_min, inside_polygon
 
 PACK_DIR = Path(__file__).resolve().parent
@@ -18,7 +20,9 @@ MEDIA = ["HFC", "FTTx", "CATV"]
 
 
 def load_yaml(filename: str) -> dict:
-    return yaml.safe_load((PACK_DIR / filename).read_text(encoding="utf-8"))
+    # params.yaml과 마찬가지로 프리셋 폴더(set_domain_files_root)가 있으면 그쪽을 먼저 쓴다.
+    # 시연용 데이터 규모를 레포 기본값을 건드리지 않고 바꿀 수 있게 하기 위함.
+    return yaml.safe_load(domain_file("dispatch", filename, PACK_DIR).read_text(encoding="utf-8"))
 
 
 def _pick(rng: random.Random, weights: dict):
